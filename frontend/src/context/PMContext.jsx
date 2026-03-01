@@ -1,73 +1,173 @@
-import React, { createContext, useContext, useState } from 'react';
+import { createContext, useEffect, useState, useContext } from "react";
 import {
-    projects as initialProjects,
-    tasks as initialTasks,
-    workers as initialWorkers,
-    issues as initialIssues,
-    dailyReports as initialReports,
-    safetyObservations as initialSafety,
-    stopHoldNotices as initialNotices
-} from '../assets/dummyData';
+    projects as dummyProjects,
+    tasks as dummyTasks,
+    workers as dummyWorkers,
+    issues as dummyIssues,
+    dailyReports as dummyReports,
+    safetyObservations as dummySafety,
+    stopHoldNotices as dummyNotices
+} from "../assets/dummyData";
 
-const PMContext = createContext();
+export const PMContext = createContext();
 
-export const usePMContext = () => useContext(PMContext);
+export const PMProvider = (props) => {
 
-export const PMProvider = ({ children }) => {
-    const [projects, setProjects] = useState(initialProjects);
-    const [tasks, setTasks] = useState(initialTasks);
-    const [workers, setWorkers] = useState(initialWorkers);
-    const [issues, setIssues] = useState(initialIssues);
-    const [dailyReports, setDailyReports] = useState(initialReports);
-    const [safetyObservations, setSafetyObservations] = useState(initialSafety);
-    const [stopHoldNotices, setStopHoldNotices] = useState(initialNotices);
+    const [projects, setProjects] = useState([]);
+    const [tasks, setTasks] = useState([]);
+    const [workers, setWorkers] = useState([]);
+    const [issues, setIssues] = useState([]);
+    const [dailyReports, setDailyReports] = useState([]);
+    const [safetyObservations, setSafetyObservations] = useState([]);
+    const [stopHoldNotices, setStopHoldNotices] = useState([]);
 
-    // Projects CRUD
-    const addProject = (project) => setProjects([...projects, { ...project, id: `PROJ-${Date.now()}` }]);
-    const updateProject = (id, updated) => setProjects(projects.map(p => p.id === id ? { ...p, ...updated } : p));
-    const deleteProject = (id) => setProjects(projects.filter(p => p.id !== id));
+    // --- Fetch Functions (Dummy Data Simulated) ---
 
-    // Tasks CRUD
-    const addTask = (task) => setTasks([...tasks, { ...task, id: `TASK-${Date.now()}` }]);
-    const updateTask = (id, updated) => setTasks(tasks.map(t => t.id === id ? { ...t, ...updated } : t));
-    const deleteTask = (id) => setTasks(tasks.filter(t => t.id !== id));
+    const fetchProjects = () => {
+        setProjects(dummyProjects);
+    };
 
-    // Workers CRUD
-    const addWorker = (worker) => setWorkers([...workers, { ...worker, id: `WRK-${Date.now()}` }]);
-    const updateWorker = (id, updated) => setWorkers(workers.map(w => w.id === id ? { ...w, ...updated } : w));
-    const deleteWorker = (id) => setWorkers(workers.filter(w => w.id !== id));
+    const fetchTasks = () => {
+        setTasks(dummyTasks);
+    };
 
-    // Issues CRUD
-    const addIssue = (issue) => setIssues([...issues, { ...issue, id: `ISS-${Date.now()}` }]);
-    const updateIssue = (id, updated) => setIssues(issues.map(i => i.id === id ? { ...i, ...updated } : i));
-    const deleteIssue = (id) => setIssues(issues.filter(i => i.id !== id));
+    const fetchWorkers = () => {
+        setWorkers(dummyWorkers);
+    };
 
-    // Daily Reports CRUD
-    const addDailyReport = (report) => setDailyReports([...dailyReports, { ...report, id: `REP-${Date.now()}` }]);
-    const updateDailyReport = (id, updated) => setDailyReports(dailyReports.map(r => r.id === id ? { ...r, ...updated } : r));
-    const deleteDailyReport = (id) => setDailyReports(dailyReports.filter(r => r.id !== id));
+    const fetchIssues = () => {
+        setIssues(dummyIssues);
+    };
 
-    // Safety Observations CRUD
-    const addSafetyObservation = (obs) => setSafetyObservations([...safetyObservations, { ...obs, id: `SAF-${Date.now()}` }]);
-    const updateSafetyObservation = (id, updated) => setSafetyObservations(safetyObservations.map(s => s.id === id ? { ...s, ...updated } : s));
-    const deleteSafetyObservation = (id) => setSafetyObservations(safetyObservations.filter(s => s.id !== id));
+    const fetchDailyReports = () => {
+        setDailyReports(dummyReports);
+    };
 
-    // Stop and Hold Notices CRUD
-    const addStopHoldNotice = (notice) => setStopHoldNotices([...stopHoldNotices, { ...notice, id: `SHN-${Date.now()}` }]);
-    const updateStopHoldNotice = (id, updated) => setStopHoldNotices(stopHoldNotices.map(n => n.id === id ? { ...n, ...updated } : n));
-    const deleteStopHoldNotice = (id) => setStopHoldNotices(stopHoldNotices.filter(n => n.id !== id));
+    const fetchSafetyObservations = () => {
+        setSafetyObservations(dummySafety);
+    };
+
+    const fetchStopHoldNotices = () => {
+        setStopHoldNotices(dummyNotices);
+    };
+
+    // --- Shared Helpers for CRUD ---
+
+    const upsertById = (collection, item, prefix) => {
+        if (item.id) {
+            return collection.map(colItem => colItem.id === item.id ? { ...colItem, ...item } : colItem);
+        }
+        return [...collection, { ...item, id: `${prefix}-${Date.now()}` }];
+    };
+
+    const removeById = (collection, id) => {
+        return collection.filter(item => item.id !== id);
+    };
+
+    // --- CRUD Functions ---
+
+    // Projects
+    const addProject = (project) => setProjects(prev => upsertById(prev, project, 'PROJ'));
+    const updateProject = (id, updated) => setProjects(prev => upsertById(prev, { ...updated, id }, 'PROJ'));
+    const deleteProject = (id) => setProjects(prev => removeById(prev, id));
+
+    // Tasks
+    const addTask = (task) => setTasks(prev => upsertById(prev, task, 'TASK'));
+    const updateTask = (id, updated) => setTasks(prev => upsertById(prev, { ...updated, id }, 'TASK'));
+    const deleteTask = (id) => setTasks(prev => removeById(prev, id));
+
+    // Workers
+    const addWorker = (worker) => setWorkers(prev => upsertById(prev, worker, 'WRK'));
+    const updateWorker = (id, updated) => setWorkers(prev => upsertById(prev, { ...updated, id }, 'WRK'));
+    const deleteWorker = (id) => setWorkers(prev => removeById(prev, id));
+
+    // Issues
+    const addIssue = (issue) => setIssues(prev => upsertById(prev, issue, 'ISS'));
+    const updateIssue = (id, updated) => setIssues(prev => upsertById(prev, { ...updated, id }, 'ISS'));
+    const deleteIssue = (id) => setIssues(prev => removeById(prev, id));
+
+    // Daily Reports
+    const addDailyReport = (report) => setDailyReports(prev => upsertById(prev, report, 'REP'));
+    const updateDailyReport = (id, updated) => setDailyReports(prev => upsertById(prev, { ...updated, id }, 'REP'));
+    const deleteDailyReport = (id) => setDailyReports(prev => removeById(prev, id));
+
+    // Safety Observations
+    const addSafetyObservation = (obs) => setSafetyObservations(prev => upsertById(prev, obs, 'SAF'));
+    const updateSafetyObservation = (id, updated) => setSafetyObservations(prev => upsertById(prev, { ...updated, id }, 'SAF'));
+    const deleteSafetyObservation = (id) => setSafetyObservations(prev => removeById(prev, id));
+
+    // Stop and Hold Notices
+    const addStopHoldNotice = (notice) => setStopHoldNotices(prev => upsertById(prev, notice, 'SHN'));
+    const updateStopHoldNotice = (id, updated) => setStopHoldNotices(prev => upsertById(prev, { ...updated, id }, 'SHN'));
+    const deleteStopHoldNotice = (id) => setStopHoldNotices(prev => removeById(prev, id));
+
+
+    // --- Computed Helper Functions ---
+
+    const getProjectTasks = (projectId) => {
+        return tasks.filter(task => task.projectId === projectId);
+    };
+
+    const getProjectIssues = (projectId) => {
+        return issues.filter(issue => issue.projectId === projectId);
+    };
+
+    const calculateProjectProgress = (projectId) => {
+        const projectTasks = getProjectTasks(projectId);
+        if (projectTasks.length === 0) return 0;
+        const completedTasks = projectTasks.filter(task => task.status === "Completed").length;
+        return Math.round((completedTasks / projectTasks.length) * 100);
+    };
+
+    const countOpenIssues = (projectId) => {
+        return getProjectIssues(projectId).filter(issue => issue.status === "Open" || issue.status === "In Progress").length;
+    };
+
+    const getWorkerTaskLoad = (workerId) => {
+        return tasks.filter(task => task.assignedTo && task.assignedTo.includes(workerId) && task.status !== "Completed").length;
+    };
+
+    const getOverdueTasks = (referenceDate) => {
+        const refDateObj = new Date(referenceDate);
+        return tasks.filter(task => {
+            if (task.status === "Completed") return false;
+            const dueDate = new Date(task.endDate);
+            return dueDate < refDateObj;
+        });
+    };
+
+    // --- useEffects ---
+
+    useEffect(() => {
+        fetchProjects();
+        fetchTasks();
+        fetchWorkers();
+        fetchIssues();
+        fetchDailyReports();
+        fetchSafetyObservations();
+        fetchStopHoldNotices();
+    }, []);
+
+    // --- Context Value ---
+
+    const value = {
+        projects, tasks, workers, issues, dailyReports, safetyObservations, stopHoldNotices,
+        fetchProjects, fetchTasks, fetchWorkers, fetchIssues, fetchDailyReports, fetchSafetyObservations, fetchStopHoldNotices,
+        addProject, updateProject, deleteProject,
+        addTask, updateTask, deleteTask,
+        addWorker, updateWorker, deleteWorker,
+        addIssue, updateIssue, deleteIssue,
+        addDailyReport, updateDailyReport, deleteDailyReport,
+        addSafetyObservation, updateSafetyObservation, deleteSafetyObservation,
+        addStopHoldNotice, updateStopHoldNotice, deleteStopHoldNotice,
+        getProjectTasks, getProjectIssues, calculateProjectProgress, countOpenIssues, getWorkerTaskLoad, getOverdueTasks
+    };
 
     return (
-        <PMContext.Provider value={{
-            projects, addProject, updateProject, deleteProject,
-            tasks, addTask, updateTask, deleteTask,
-            workers, addWorker, updateWorker, deleteWorker,
-            issues, addIssue, updateIssue, deleteIssue,
-            dailyReports, addDailyReport, updateDailyReport, deleteDailyReport,
-            safetyObservations, addSafetyObservation, updateSafetyObservation, deleteSafetyObservation,
-            stopHoldNotices, addStopHoldNotice, updateStopHoldNotice, deleteStopHoldNotice
-        }}>
-            {children}
+        <PMContext.Provider value={value}>
+            {props.children}
         </PMContext.Provider>
     );
 };
+
+export const usePMContext = () => useContext(PMContext);

@@ -1,9 +1,11 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { SignedIn, SignedOut } from "@clerk/clerk-react";
 import PMLayout from "./layouts/PMLayout";
 import Dashboard from "./pages/PM/Dashboard";
 import { PMProvider } from "./context/PMContext";
 
+import Login from "./pages/Login";
 import Projects from "./pages/PM/Projects";
 import Tasks from "./pages/PM/Tasks";
 import Workers from "./pages/PM/Workers";
@@ -15,8 +17,32 @@ const App = () => {
     return (
         <PMProvider>
             <Routes>
-                <Route path="/" element={<Navigate to="/pm/dashboard" replace />} />
-                <Route path="/pm" element={<PMLayout />}>
+                {/* Public Route */}
+                <Route path="/login" element={
+                    <SignedOut>
+                        <Login />
+                    </SignedOut>
+                } />
+
+                {/* Redirect logic if trying to access root */}
+                <Route path="/" element={
+                    <>
+                        <SignedIn>
+                            <Navigate to="/pm/dashboard" replace />
+                        </SignedIn>
+                        <SignedOut>
+                            <Navigate to="/login" replace />
+                        </SignedOut>
+                    </>
+                } />
+
+                {/* Protected PM Routes */}
+                <Route path="/pm" element={
+                    <SignedIn>
+                        <PMLayout />
+                    </SignedIn>
+                }>
+                    <Route index element={<Navigate to="dashboard" replace />} />
                     <Route path="dashboard" element={<Dashboard />} />
                     <Route path="projects" element={<Projects />} />
                     <Route path="tasks" element={<Tasks />} />
@@ -25,6 +51,13 @@ const App = () => {
                     <Route path="reports" element={<DailyReports />} />
                     <Route path="safety" element={<SafetyNotices />} />
                 </Route>
+
+                {/* Fallback for unknown routes inside /pm or otherwise if unauthenticated */}
+                <Route path="*" element={
+                    <SignedOut>
+                        <Navigate to="/login" replace />
+                    </SignedOut>
+                } />
             </Routes>
         </PMProvider>
     );
