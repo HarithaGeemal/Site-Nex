@@ -1,21 +1,35 @@
 import React from 'react';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
+import { useUser } from '@clerk/clerk-react';
 import { projects, tasks, issues, workers, dailyReports } from '../../assets/dummyData';
 
 const Dashboard = () => {
+    const { user, isLoaded } = useUser();
+
     // Basic stats calculation based on dummy data
     const activeProjectsCount = projects.filter(p => p.status === 'In Progress').length;
     const openIssuesCount = issues.filter(i => i.status === 'Open').length;
     const activeWorkersCount = workers.filter(w => w.status === 'Active').length;
     const highPriorityTasks = tasks.filter(t => t.priority === 'High' && t.status !== 'Completed').length;
 
+    // Computed overall health: average progress across all projects
+    const overallHealth = projects.length
+        ? Math.round(projects.reduce((sum, p) => sum + (p.progress || 0), 0) / projects.length)
+        : 0;
+
+    // Helper to resolve a project name from its ID
+    const getProjectName = (id) => projects.find(p => p.id === id)?.name || id;
+
+    // Clerk user's first name for the welcome greeting
+    const greetName = isLoaded && user ? (user.firstName || user.fullName?.split(' ')[0] || 'there') : '...';
+
     return (
         <div className="p-6 bg-concrete-light min-h-full">
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-steel-blue">Dashboard Overview</h1>
-                    <p className="text-concrete mt-1">Welcome back, Alice. Here's what's happening today.</p>
+                    <p className="text-concrete mt-1">Welcome back, {greetName}. Here's what's happening today.</p>
                 </div>
                 <button className="bg-steel-blue hover:bg-steel-blue/90 text-white font-medium py-2 px-4 rounded shadow-sm transition-colors flex items-center gap-2">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
@@ -83,7 +97,7 @@ const Dashboard = () => {
                                         <div className="text-xl font-bold leading-none">{new Date(report.date).getDate()}</div>
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-gray-800 text-sm">Report by {report.submittedBy} - PROJ-101</h4>
+                                        <h4 className="font-bold text-gray-800 text-sm">Report by {report.submittedBy} — {getProjectName(report.projectId)}</h4>
                                         <p className="text-sm text-concrete mt-1 line-clamp-2">{report.workCompleted}</p>
                                     </div>
                                 </div>
@@ -101,8 +115,8 @@ const Dashboard = () => {
                         <h2 className="text-lg font-bold text-steel-blue mb-6 w-full text-left">Overall Health</h2>
                         <div className="w-40 h-40 mb-4">
                             <CircularProgressbar
-                                value={75}
-                                text="75%"
+                                value={overallHealth}
+                                text={`${overallHealth}%`}
                                 styles={buildStyles({
                                     pathColor: '#1E3A5F', // steel-blue
                                     textColor: '#1E3A5F',

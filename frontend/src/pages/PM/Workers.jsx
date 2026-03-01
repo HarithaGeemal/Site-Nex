@@ -1,31 +1,49 @@
 import React, { useState } from 'react';
 import { usePMContext } from '../../context/PMContext';
 
+const statusColors = {
+    Active: 'bg-green-100 text-green-800',
+    'On Leave': 'bg-yellow-100 text-yellow-800',
+    Inactive: 'bg-red-100 text-red-800',
+};
+
+const roleIcons = {
+    Foreman: '👷',
+    Supervisor: '🧑‍💼',
+    Operator: '⚙️',
+    'Skilled Worker': '🔧',
+    'General Laborer': '🪛',
+};
+
 const Workers = () => {
     const { workers, addWorker, updateWorker, deleteWorker } = usePMContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentWorker, setCurrentWorker] = useState(null);
+    const [filterStatus, setFilterStatus] = useState('All');
 
-    // form state
     const [formData, setFormData] = useState({
         name: '', role: 'Skilled Worker', trade: '', phone: '', status: 'Active'
     });
 
+    // Stats from dummy data
+    const stats = {
+        total: workers.length,
+        active: workers.filter(w => w.status === 'Active').length,
+        onLeave: workers.filter(w => w.status === 'On Leave').length,
+        inactive: workers.filter(w => w.status === 'Inactive').length,
+    };
+
+    const filtered = filterStatus === 'All'
+        ? workers
+        : workers.filter(w => w.status === filterStatus);
+
     const openModal = (worker = null) => {
-        if (worker) {
-            setCurrentWorker(worker);
-            setFormData(worker);
-        } else {
-            setCurrentWorker(null);
-            setFormData({ name: '', role: 'Skilled Worker', trade: '', phone: '', status: 'Active' });
-        }
+        if (worker) { setCurrentWorker(worker); setFormData(worker); }
+        else { setCurrentWorker(null); setFormData({ name: '', role: 'Skilled Worker', trade: '', phone: '', status: 'Active' }); }
         setIsModalOpen(true);
     };
 
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setCurrentWorker(null);
-    };
+    const closeModal = () => { setIsModalOpen(false); setCurrentWorker(null); };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -34,90 +52,120 @@ const Workers = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (currentWorker) {
-            updateWorker(currentWorker.id, formData);
-        } else {
-            addWorker(formData);
-        }
+        if (currentWorker) updateWorker(currentWorker.id, formData);
+        else addWorker(formData);
         closeModal();
     };
 
     const handleDelete = (id) => {
-        if (window.confirm("Are you sure you want to delete this worker?")) {
-            deleteWorker(id);
-        }
+        if (window.confirm('Are you sure you want to remove this worker?')) deleteWorker(id);
     };
 
     return (
-        <div className="p-6">
+        <div className="p-6 bg-concrete-light min-h-full">
+            {/* Header */}
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-navy-dark">Worker Management</h1>
-                <button onClick={() => openModal()} className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition">
-                    + Add New Worker
+                <div>
+                    <h1 className="text-2xl font-bold text-steel-blue">Worker Management</h1>
+                    <p className="text-sm text-concrete mt-1">{stats.total} workers on roster &mdash; {stats.active} active</p>
+                </div>
+                <button onClick={() => openModal()} className="bg-steel-blue text-white px-4 py-2 rounded shadow hover:bg-steel-blue/90 transition flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                    Add New Worker
                 </button>
             </div>
 
-            {/* Grid of Workers */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {workers.map(worker => (
-                    <div key={worker.id} className="bg-white rounded-lg shadow p-5 border border-gray-200">
-                        <div className="flex justify-between items-start mb-2">
-                            <h2 className="text-lg font-semibold text-gray-800">{worker.name}</h2>
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${worker.status === 'Active' ? 'bg-green-100 text-green-800' : worker.status === 'On Leave' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                                {worker.status}
-                            </span>
-                        </div>
-                        <p className="text-sm text-gray-500 mb-1">{worker.role}</p>
-                        <p className="text-xs text-blue-600 font-medium mb-4">{worker.trade}</p>
+            {/* Stats Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                {[
+                    { label: 'Total Workforce', value: stats.total, color: 'border-steel-blue text-steel-blue' },
+                    { label: 'Active', value: stats.active, color: 'border-green-400 text-green-600' },
+                    { label: 'On Leave', value: stats.onLeave, color: 'border-yellow-400 text-yellow-600' },
+                    { label: 'Inactive', value: stats.inactive, color: 'border-red-400 text-red-600' },
+                ].map(s => (
+                    <div key={s.label} className={`bg-white rounded-lg p-4 border-l-4 ${s.color} shadow-sm`}>
+                        <p className="text-xs text-concrete uppercase font-medium">{s.label}</p>
+                        <p className={`text-2xl font-bold ${s.color.split(' ')[1]}`}>{s.value}</p>
+                    </div>
+                ))}
+            </div>
 
-                        <div className="space-y-2 text-sm text-gray-700">
-                            <div className="flex items-center">
-                                <span className="font-medium text-gray-500 mr-2">Phone:</span>
+            {/* Filter Tabs */}
+            <div className="flex gap-2 mb-6">
+                {['All', 'Active', 'On Leave', 'Inactive'].map(s => (
+                    <button key={s} onClick={() => setFilterStatus(s)}
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium border transition ${filterStatus === s ? 'bg-steel-blue text-white border-steel-blue' : 'bg-white text-concrete border-concrete-light hover:border-steel-blue hover:text-steel-blue'}`}>
+                        {s}
+                    </button>
+                ))}
+            </div>
+
+            {/* Worker Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                {filtered.map(worker => (
+                    <div key={worker.id} className="bg-white rounded-xl shadow-sm border border-concrete-light p-5 flex flex-col hover:shadow-md transition-shadow">
+                        {/* Avatar + Name */}
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="h-12 w-12 rounded-full bg-steel-blue/10 text-steel-blue flex items-center justify-center text-xl font-bold shrink-0">
+                                {worker.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                                <h2 className="text-base font-bold text-gray-800 truncate">{worker.name}</h2>
+                                <span className="text-xs text-concrete font-mono">{worker.id}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm text-gray-600 font-medium">{roleIcons[worker.role] || '👤'} {worker.role}</span>
+                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${statusColors[worker.status] || 'bg-gray-100 text-gray-600'}`}>{worker.status}</span>
+                        </div>
+
+                        <div className="space-y-1.5 text-sm text-gray-600 flex-1">
+                            <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 shrink-0 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                <span className="text-blue-600 font-medium text-sm">{worker.trade}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 shrink-0 text-concrete" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                                 <span>{worker.phone}</span>
                             </div>
                         </div>
 
-                        <div className="mt-6 flex justify-end space-x-3 pt-4 border-t">
-                            <button onClick={() => openModal(worker)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</button>
-                            <button onClick={() => handleDelete(worker.id)} className="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
+                        <div className="mt-4 pt-4 border-t border-concrete-light flex justify-end space-x-3">
+                            <button onClick={() => openModal(worker)} className="text-steel-blue hover:text-steel-blue/80 text-sm font-medium">Edit</button>
+                            <button onClick={() => handleDelete(worker.id)} className="text-red-500 hover:text-red-700 text-sm font-medium">Remove</button>
                         </div>
                     </div>
                 ))}
+                {filtered.length === 0 && (
+                    <div className="col-span-4 text-center py-16 text-concrete">
+                        <p className="text-lg font-medium">No workers found.</p>
+                    </div>
+                )}
             </div>
 
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
                         <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
                             <h3 className="text-lg font-semibold text-gray-800">{currentWorker ? 'Edit Worker' : 'Add New Worker'}</h3>
                             <button onClick={closeModal} className="text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
                         </div>
                         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                                <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                                 <select name="role" value={formData.role} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2">
                                     <option value="Foreman">Foreman</option>
+                                    <option value="Supervisor">Supervisor</option>
                                     <option value="Skilled Worker">Skilled Worker</option>
                                     <option value="General Laborer">General Laborer</option>
                                     <option value="Operator">Operator</option>
-                                    <option value="Supervisor">Supervisor</option>
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Trade/Specialty</label>
-                                <input type="text" name="trade" value={formData.trade} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                                <input type="text" name="phone" value={formData.phone} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Trade / Specialty</label><input type="text" name="trade" value={formData.trade} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label><input type="text" name="phone" value={formData.phone} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                                 <select name="status" value={formData.status} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2">
                                     <option value="Active">Active</option>
                                     <option value="On Leave">On Leave</option>
@@ -127,7 +175,7 @@ const Workers = () => {
                         </form>
                         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end space-x-3">
                             <button type="button" onClick={closeModal} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium">Cancel</button>
-                            <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Save Worker</button>
+                            <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-steel-blue text-white rounded hover:bg-steel-blue/90 font-medium">Save Worker</button>
                         </div>
                     </div>
                 </div>
