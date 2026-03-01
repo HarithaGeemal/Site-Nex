@@ -6,6 +6,7 @@ import Dashboard from "./pages/PM/Dashboard";
 import { PMProvider } from "./context/PMContext";
 
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Projects from "./pages/PM/Projects";
 import Tasks from "./pages/PM/Tasks";
 import Workers from "./pages/PM/Workers";
@@ -17,11 +18,26 @@ const App = () => {
     return (
         <PMProvider>
             <Routes>
-                {/* Public Route */}
+                {/* Public Routes */}
                 <Route path="/login" element={
-                    <SignedOut>
-                        <Login />
-                    </SignedOut>
+                    <>
+                        <SignedIn>
+                            <Navigate to="/pm/dashboard" replace />
+                        </SignedIn>
+                        <SignedOut>
+                            <Login />
+                        </SignedOut>
+                    </>
+                } />
+                <Route path="/register" element={
+                    <>
+                        <SignedIn>
+                            <Navigate to="/pm/dashboard" replace />
+                        </SignedIn>
+                        <SignedOut>
+                            <Register />
+                        </SignedOut>
+                    </>
                 } />
 
                 {/* Redirect logic if trying to access root */}

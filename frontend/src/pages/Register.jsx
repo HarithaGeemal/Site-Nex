@@ -1,9 +1,9 @@
 import React from 'react';
-import { SignIn } from '@clerk/clerk-react';
-import SiteNexLogo from '../assets/logo2.png';
+import { SignUp } from '@clerk/clerk-react';
+import SiteNexLogo from '../assets/logo.png';
 import LoginBg from '../assets/login-background.jpg';
 
-const Login = () => {
+const Register = () => {
     return (
         <div
             className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden bg-cover bg-center bg-no-repeat"
@@ -25,19 +25,19 @@ const Login = () => {
                     />
 
                     <h2 className="text-4xl font-bold text-white tracking-wide drop-shadow-lg">
-                        SiteNex Login Portal
+                        Join SiteNex
                     </h2>
 
                     <p className="mt-3 text-gray-300 text-sm tracking-wide">
-                        Smart Construction Tracking System
+                        Create your account
                     </p>
                 </div>
             </div>
 
-            {/* Login Card */}
+            {/* Register Card */}
             <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md z-10 flex justify-center">
-                <SignIn
-                    signUpUrl="/register"
+                <SignUp
+                    signInUrl="/login"
                     appearance={{
                         elements: {
                             formButtonPrimary:
@@ -53,4 +53,4 @@ const Login = () => {
     );
 };
 
-export default Login;
+export default Register;
