@@ -34,13 +34,13 @@ const issueSchema = new mongoose.Schema(
 
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "users",
+            ref: "User",
             required: true,
         },
 
         assignedTo: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "users",
+            ref: "User",
             default: null,
         },
 

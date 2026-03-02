@@ -9,7 +9,7 @@ const materialUsageLogSchema = new mongoose.Schema(
         quantityUsed: { type: Number, min: 0, required: true },
         usageDate: { type: Date, required: true },
 
-        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "users" },
+        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
         isVoided: { type: Boolean, default: false },
         voidReason: { type: String, trim: true },

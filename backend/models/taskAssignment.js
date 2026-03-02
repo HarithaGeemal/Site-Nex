@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const taskAssignmentSchema = new mongoose.Schema(
     {
         taskId: { type: mongoose.Schema.Types.ObjectId, ref: "tasks", required: true },
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: "users", required: true },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 
         roleOnTask: { type: String, required: true, trim: true },
 

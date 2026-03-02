@@ -15,7 +15,7 @@ const materialStockMovementSchema = new mongoose.Schema(
         unitCost: { type: Number, min: 0 },
         note: { type: String, trim: true },
 
-        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "users" },
+        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     },
     { timestamps: true }
 );
