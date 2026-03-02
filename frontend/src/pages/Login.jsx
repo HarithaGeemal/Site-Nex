@@ -10,12 +10,12 @@ const Login = () => {
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="flex justify-center flex-col items-center text-center">
 
-                    <img
+                    {/* <img
                         src={SiteNexLogo}
                         alt="SiteNex Logo"
                         className="h-24 w-auto mb-6 drop-shadow-2xl"
                         onError={(e) => { e.target.style.display = 'none'; }}
-                    />
+                    /> */}
 
                     <h2 className="text-4xl font-bold text-white tracking-wide drop-shadow-lg">
                         SiteNex Login Portal

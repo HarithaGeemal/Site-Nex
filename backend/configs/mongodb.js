@@ -5,9 +5,12 @@ const connectDB = async () => {
         console.log('MongoDB is connected')
     });
 
-    await mongoose.connect(`${process.env.MONGODB_URI}/sitenex`)
-
-
+    try {
+        await mongoose.connect(`${process.env.MONGODB_URI}/sitenex`);
+    } catch (err) {
+        console.error('MongoDB connection failed:', err.message);
+        process.exit(1);
+    }
 }
 
 export default connectDB
