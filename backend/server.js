@@ -1,11 +1,17 @@
 import express from 'express';
-import dotenv from 'dotenv';
+import dotenv from "dotenv/config";
 import cors from 'cors';
+import connectDB from './configs/mongodb.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+await connectDB();
+
+app.use(cors({
+    origin: ['http://localhost:5173'],
+    credentials: true
+}));
 app.use(express.json());
 
 app.get('/', (req, res) => {
