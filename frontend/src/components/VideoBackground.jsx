@@ -1,8 +1,11 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import bgVideo1 from '../assets/final-bg-1.mp4';
 import bgVideo2 from '../assets/final-bg-2.mp4';
+import bgVideo3 from '../assets/final-bg-3.mp4';
+import bgVideo4 from '../assets/final-bg-4.mp4';
 
-const videos = [bgVideo1, bgVideo2];
+// Sequence: bg1 → bg3 → bg4 → bg2 → (repeat)
+const videos = [bgVideo1, bgVideo3, bgVideo4, bgVideo2];
 const CROSSFADE_DURATION = 1.5; // seconds — fade starts this long before the video ends
 
 const VideoBackground = ({ children }) => {

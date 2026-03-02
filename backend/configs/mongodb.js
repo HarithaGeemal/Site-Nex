@@ -1,16 +1,16 @@
-import mongoose from 'mongoose'
+import mongoose from "mongoose";
 
 const connectDB = async () => {
-    mongoose.connection.on('connected', () => {
-        console.log('MongoDB is connected')
-    });
-
     try {
-        await mongoose.connect(`${process.env.MONGODB_URI}/sitenex`);
+        mongoose.connection.on("connected", () => {
+            console.log("MongoDB is connected");
+        });
+
+        await mongoose.connect(process.env.MONGODB_URI, { dbName: "sitenex" });
     } catch (err) {
-        console.error('MongoDB connection failed:', err.message);
+        console.error("MongoDB connection failed:", err);
         process.exit(1);
     }
-}
+};
 
-export default connectDB
+export default connectDB;
