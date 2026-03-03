@@ -1,4 +1,12 @@
 import express from "express";
+import protect from "../middlewares/authMiddleware.js";
+import { loadProject, authorizeProjectAccess } from "../middlewares/rbacMiddleware.js";
+import { validateRequest } from "../middlewares/validateRequest.js";
+import {
+    createProjectSchema,
+    updateProjectSchema,
+    idParamSchema
+} from "../validations/schemas.js";
 import {
     createProject,
     getAllProjects,
@@ -11,13 +19,19 @@ import {
 
 const router = express.Router();
 
-router.post("/", /* protect, authorizeRoles("ADMIN"), */ createProject);
-router.get("/", /* protect, */ getAllProjects);
-router.get("/:id", /* protect, */ getProjectById);
-router.put("/:id", /* protect, authorizeRoles("ADMIN", "PROJECT_MANAGER"), */ updateProject);
-router.delete("/:id", /* protect, authorizeRoles("ADMIN"), */ deleteProject);
+// Only ADMIN maps globally
+router.post("/", protect, validateRequest({ body: createProjectSchema }), createProject);
 
-router.post("/:id/members", /* protect, authorizeRoles("ADMIN", "PROJECT_MANAGER"), */ addMember);
-router.delete("/:id/members/:userId", /* protect, authorizeRoles("ADMIN", "PROJECT_MANAGER"), */ removeMember);
+router.get("/", protect, getAllProjects); // Controller handles membership filter
+
+// All down-line routes must load the project first
+router.use("/:id", protect, validateRequest({ params: idParamSchema }), loadProject);
+
+router.get("/:id", authorizeProjectAccess("STORE_KEEPER"), getProjectById);
+router.put("/:id", validateRequest({ body: updateProjectSchema }), authorizeProjectAccess("PROJECT_MANAGER"), updateProject);
+router.delete("/:id", authorizeProjectAccess("ADMIN"), deleteProject);
+
+router.post("/:id/members", authorizeProjectAccess("PROJECT_MANAGER"), addMember);
+router.delete("/:id/members/:userId", authorizeProjectAccess("PROJECT_MANAGER"), removeMember);
 
 export default router;

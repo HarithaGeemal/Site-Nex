@@ -1,18 +1,5 @@
 import mongoose from "mongoose";
 
-const projectMemberSchema = new mongoose.Schema(
-    {
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-        role: {
-            type: String,
-            enum: ["PROJECT_MANAGER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER"],
-            required: true,
-        },
-        isPrimary: { type: Boolean, default: false }, 
-    },
-    { _id: false }
-);
-
 const projectSchema = new mongoose.Schema(
     {
         name: { type: String, required: true },
@@ -32,7 +19,7 @@ const projectSchema = new mongoose.Schema(
 
         progress: { type: Number, min: 0, max: 100, default: 0 },
 
-        members: { type: [projectMemberSchema], default: [] },
+        isDeleted: { type: Boolean, default: false },
     },
     { timestamps: true }
 );

@@ -1,8 +1,22 @@
+import mongoose from "mongoose";
 import Project from "../models/projects.js";
+import ProjectMembership from "../models/projectMembership.js";
+import ProjectService from "../services/projectService.js";
+import Task from "../models/task.js";
+import Issue from "../models/issue.js";
+import User from "../models/users.js";
+import TaskAssignment from "../models/taskAssignment.js";
 
+const MEMBER_ROLES = ["PROJECT_MANAGER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER"];
+
+const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+// @desc    Create a new project
+// @route   POST /api/projects
+// @access  Admin
 export const createProject = async (req, res) => {
     try {
-        const { name, location, startDate, endDate, description, budget, status, progress, members } = req.body;
+        const { name, location, startDate, endDate, description, budget, status, progress } = req.body;
 
         const project = await Project.create({
             name,
@@ -13,121 +27,185 @@ export const createProject = async (req, res) => {
             budget,
             status,
             progress,
-            members: members || [],
         });
 
-        res.json({ success: true, message: "Project created successfully", project });
+        // Automatically add the creator as the OWNER
+        await ProjectMembership.create({
+            projectId: project._id,
+            userId: req.user._id,
+            role: "OWNER",
+            isPrimary: true
+        });
+
+        return res.status(201).json({ success: true, message: "Project created successfully", project });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
-
+// @desc    Get all projects
+// @route   GET /api/projects
+// @access  Private
 export const getAllProjects = async (req, res) => {
     try {
-        const projects = await Project.find()
-            .populate("members.userId", "name email userRole phone")
-            .sort({ createdAt: -1 });
+        // ADMIN sees all projects; other roles see only projects they are members of
+        const filter = { isDeleted: false };
+        if (req.user.userRole !== "ADMIN") {
+            // Find projects this user belongs to
+            const memberships = await ProjectMembership.find({ userId: req.user._id, removedAt: null }).select("projectId");
+            const projectIds = memberships.map(m => m.projectId);
+            filter._id = { $in: projectIds };
+        }
 
-        res.json({ success: true, projects });
+        const projects = await Project.find(filter).sort({ createdAt: -1 });
+
+        return res.status(200).json({ success: true, projects });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
-
+// @desc    Get single project by ID
+// @route   GET /api/projects/:id
+// @access  Admin / Project Manager
 export const getProjectById = async (req, res) => {
     try {
-        const project = await Project.findById(req.params.id)
-            .populate("members.userId", "name email userRole phone");
+        // req.project is already loaded by loadProject middleware
+        const project = req.project.toObject();
 
-        if (!project) {
-            res.json({ success: false, message: "Project not found" });
-            return;
-        }
+        // Fetch active members mapped dynamically
+        const memberships = await ProjectMembership.find({ projectId: project._id, removedAt: null }).populate("userId", "name email userRole phone");
+        project.members = memberships.map(m => ({
+            userId: m.userId,
+            role: m.role,
+            isPrimary: m.isPrimary,
+            joinedAt: m.joinedAt
+        }));
 
-        res.json({ success: true, project });
+        return res.status(200).json({ success: true, project });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Update a project
+// @route   PUT /api/projects/:id
+// @access  Admin / Project Manager
 export const updateProject = async (req, res) => {
     try {
-        const { name, location, startDate, endDate, description, budget, status, progress } = req.body;
 
-        const project = await Project.findByIdAndUpdate(
-            req.params.id,
-            { name, location, startDate, endDate, description, budget, status, progress },
-            { new: true, runValidators: true }
-        );
+        // Do not allow manual status or progress updates here — they are calculated dynamically via tasks/issues
+        const { name, location, startDate, endDate, description, budget } = req.body;
 
-        if (!project) {
-            res.json({ success: false, message: "Project not found" });
-            return;
-        }
+        // Only update defined fields
+        if (name !== undefined) req.project.name = name;
+        if (location !== undefined) req.project.location = location;
+        if (startDate !== undefined) req.project.startDate = startDate;
+        if (endDate !== undefined) req.project.endDate = endDate;
+        if (description !== undefined) req.project.description = description;
+        if (budget !== undefined) req.project.budget = budget;
 
-        res.json({ success: true, message: "Project updated successfully", project });
+        await req.project.save();
+
+        return res.status(200).json({ success: true, message: "Project updated successfully (progress/status are auto-calculated)", project: req.project });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Soft-delete a project (marks isDeleted = true)
+// @route   DELETE /api/projects/:id
+// @access  Admin
 export const deleteProject = async (req, res) => {
     try {
-        const project = await Project.findByIdAndDelete(req.params.id);
+        await ProjectService.deleteProject(req.project._id, req.user._id);
 
-        if (!project) {
-            res.json({ success: false, message: "Project not found" });
-            return;
-        }
-
-        res.json({ success: true, message: "Project deleted successfully" });
+        return res.status(200).json({ success: true, message: "Project deleted successfully" });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Add a member to a project
+// @route   POST /api/projects/:id/members
+// @access  Admin / Project Manager
 export const addMember = async (req, res) => {
     try {
+        if (!isValidId(req.params.id)) {
+            return res.status(400).json({ success: false, message: "Invalid project ID" });
+        }
+
         const { userId, role, isPrimary } = req.body;
 
-        const project = await Project.findById(req.params.id);
-        if (!project) {
-            res.json({ success: false, message: "Project not found" });
-            return;
+        if (!MEMBER_ROLES.includes(role)) {
+            return res.status(400).json({ success: false, message: `Invalid role. Must be one of: ${MEMBER_ROLES.join(", ")}` });
         }
 
-        const alreadyMember = project.members.some((m) => m.userId.toString() === userId);
-        if (alreadyMember) {
-            res.json({ success: false, message: "User is already a member of this project" });
-            return;
+        // Verify the user actually exists in the DB
+        const userExists = await User.findOne({ _id: userId, isActive: true });
+        if (!userExists) return res.status(404).json({ success: false, message: "User not found or inactive" });
+
+        // Warn if membership exists
+        const existingMembership = await ProjectMembership.findOne({ projectId: req.project._id, userId, removedAt: null });
+        if (existingMembership) {
+            return res.status(409).json({ success: false, message: "User is already an active member of this project" });
         }
 
-        project.members.push({ userId, role, isPrimary: isPrimary || false });
-        await project.save();
+        // Prevent multiple isPrimary members for the same role
+        if (isPrimary) {
+            const hasExistingPrimary = await ProjectMembership.findOne({ projectId: req.project._id, role, isPrimary: true, removedAt: null });
+            if (hasExistingPrimary) {
+                return res.status(409).json({ success: false, message: `There is already a primary ${role} on this project` });
+            }
+        }
 
-        res.json({ success: true, message: "Member added successfully", project });
+        await ProjectMembership.create({
+            projectId: req.project._id,
+            userId,
+            role,
+            isPrimary: isPrimary || false
+        });
+
+        return res.status(200).json({ success: true, message: "Member added successfully" });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Remove a member from a project
+// @route   DELETE /api/projects/:id/members/:userId
+// @access  Admin / Project Manager
 export const removeMember = async (req, res) => {
     try {
-        const project = await Project.findById(req.params.id);
-        if (!project) {
-            res.json({ success: false, message: "Project not found" });
-            return;
+        const membership = await ProjectMembership.findOneAndUpdate(
+            { projectId: req.project._id, userId: req.params.userId, removedAt: null },
+            { removedAt: new Date() },
+            { new: true }
+        );
+
+        if (!membership) {
+            return res.status(404).json({ success: false, message: "User is not a member of this project" });
         }
 
-        project.members = project.members.filter(
-            (m) => m.userId.toString() !== req.params.userId
-        );
-        await project.save();
+        // CLEANUP: 1. Soft-remove all active task assignments for this user in this project
+        const projectTasks = await Task.find({ projectId: req.project._id }).select("_id");
+        const taskIds = projectTasks.map(t => t._id);
 
-        res.json({ success: true, message: "Member removed successfully", project });
+        if (taskIds.length > 0) {
+            await TaskAssignment.updateMany(
+                { taskId: { $in: taskIds }, userId: req.params.userId, removedAt: null },
+                { removedAt: new Date(), removedReason: "User removed from project" }
+            );
+        }
+
+        // CLEANUP: 2. Unassign the user from any open issues in this project
+        await Issue.updateMany(
+            { projectId: req.project._id, assignedTo: req.params.userId, status: { $nin: ["Resolved", "Closed"] } },
+            { assignedTo: null, status: "Open" }
+        );
+
+        return res.status(200).json({ success: true, message: "Member removed and related assignments cleaned up successfully" });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };

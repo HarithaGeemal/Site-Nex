@@ -1,27 +1,40 @@
+import mongoose from "mongoose";
 import MaterialItem from "../models/materialItem.js";
 import MaterialStockMovement from "../models/materialStockMovement.js";
 import MaterialUsageLog from "../models/materialUsageLog.js";
+import MaterialService from "../services/materialService.js";
+
+const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 // ─── Material Items ───────────────────────────────────────────────────────────
 
+// @desc    Create a new material item in the catalog
+// @route   POST /api/materials/items
+// @access  Admin / Store Keeper
 export const createMaterialItem = async (req, res) => {
     try {
         const { name, category, unit, defaultUnitCost, minStockThreshold } = req.body;
 
-        const existing = await MaterialItem.findOne({ name });
-        if (existing) {
-            res.json({ success: false, message: "A material item with this name already exists" });
-            return;
+        if (!name || !unit) {
+            return res.status(400).json({ success: false, message: "name and unit are required" });
         }
 
-        const item = await MaterialItem.create({ name, category, unit, defaultUnitCost, minStockThreshold });
+        const existing = await MaterialItem.findOne({ name: name.trim() });
+        if (existing) {
+            return res.status(409).json({ success: false, message: "A material item with this name already exists" });
+        }
 
-        res.json({ success: true, message: "Material item created successfully", item });
+        const item = await MaterialItem.create({ name: name.trim(), category, unit, defaultUnitCost, minStockThreshold });
+
+        return res.status(201).json({ success: true, message: "Material item created successfully", item });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Get all material items (optionally include archived)
+// @route   GET /api/materials/items?includeArchived=true
+// @access  Private
 export const getAllMaterialItems = async (req, res) => {
     try {
         const { includeArchived } = req.query;
@@ -29,103 +42,116 @@ export const getAllMaterialItems = async (req, res) => {
 
         const items = await MaterialItem.find(filter).sort({ name: 1 });
 
-        res.json({ success: true, items });
+        return res.status(200).json({ success: true, items });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Update a material item
+// @route   PUT /api/materials/items/:id
+// @access  Admin / Store Keeper
 export const updateMaterialItem = async (req, res) => {
     try {
-        const { name, category, unit, defaultUnitCost, minStockThreshold } = req.body;
-
-        const item = await MaterialItem.findByIdAndUpdate(
-            req.params.id,
-            { name, category, unit, defaultUnitCost, minStockThreshold },
-            { new: true, runValidators: true }
-        );
-
-        if (!item) {
-            res.json({ success: false, message: "Material item not found" });
-            return;
+        if (!isValidId(req.params.id)) {
+            return res.status(400).json({ success: false, message: "Invalid material item ID" });
         }
 
-        res.json({ success: true, message: "Material item updated successfully", item });
+        const { name, category, unit, defaultUnitCost, minStockThreshold } = req.body;
+
+        const updates = {};
+        if (name !== undefined) updates.name = name.trim();
+        if (category !== undefined) updates.category = category;
+        if (unit !== undefined) updates.unit = unit;
+        if (defaultUnitCost !== undefined) updates.defaultUnitCost = defaultUnitCost;
+        if (minStockThreshold !== undefined) updates.minStockThreshold = minStockThreshold;
+
+        const item = await MaterialItem.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
+
+        if (!item) return res.status(404).json({ success: false, message: "Material item not found" });
+
+        return res.status(200).json({ success: true, message: "Material item updated successfully", item });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Archive (soft-delete) a material item
+// @route   PATCH /api/materials/items/:id/archive
+// @access  Admin
 export const archiveMaterialItem = async (req, res) => {
     try {
-        const item = await MaterialItem.findByIdAndUpdate(
-            req.params.id,
-            { isArchived: true },
-            { new: true }
-        );
-
-        if (!item) {
-            res.json({ success: false, message: "Material item not found" });
-            return;
+        if (!isValidId(req.params.id)) {
+            return res.status(400).json({ success: false, message: "Invalid material item ID" });
         }
 
-        res.json({ success: true, message: "Material item archived successfully", item });
+        const item = await MaterialItem.findByIdAndUpdate(req.params.id, { isArchived: true }, { new: true });
+
+        if (!item) return res.status(404).json({ success: false, message: "Material item not found" });
+
+        return res.status(200).json({ success: true, message: "Material item archived successfully", item });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
 // ─── Stock Movements ──────────────────────────────────────────────────────────
 
+// @desc    Record a stock movement (STOCK_IN / ADJUSTMENT / VOID_REVERT)
+// @route   POST /api/materials/stock-movements
+// @access  Store Keeper
 export const addStockMovement = async (req, res) => {
     try {
-        const { projectId, materialItemId, type, quantity, supplier, deliveryDate, unitCost, note } = req.body;
+        const { materialItemId, type, quantity, supplier, deliveryDate, unitCost, note } = req.body;
+        const projectId = req.project._id;
 
-        const movement = await MaterialStockMovement.create({
+        const movement = await MaterialService.addStockMovement(
             projectId,
             materialItemId,
             type,
             quantity,
-            supplier,
-            deliveryDate,
-            unitCost,
-            note,
-            createdBy: req.user._id,
-        });
+            req.user._id,
+            { supplier, deliveryDate, unitCost, note }
+        );
 
-        res.json({ success: true, message: "Stock movement recorded successfully", movement });
+        return res.status(201).json({ success: true, message: "Stock movement recorded successfully", movement });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Get all stock movements for a project
+// @route   GET /api/materials/stock-movements?projectId=xxx
+// @access  Private
 export const getMovementsByProject = async (req, res) => {
     try {
-        const { projectId } = req.query;
-
-        if (!projectId) {
-            res.json({ success: false, message: "projectId query parameter is required" });
-            return;
-        }
+        const projectId = req.project._id;
 
         const movements = await MaterialStockMovement.find({ projectId })
             .populate("materialItemId", "name unit category")
             .populate("createdBy", "name")
             .sort({ createdAt: -1 });
 
-        res.json({ success: true, movements });
+        return res.status(200).json({ success: true, movements });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Get stock movements for a specific material in a project
+// @route   GET /api/materials/stock-movements/by-material?projectId=xxx&materialItemId=yyy
+// @access  Private
 export const getMovementsByMaterial = async (req, res) => {
     try {
-        const { projectId, materialItemId } = req.query;
+        const projectId = req.project._id;
+        const { materialItemId } = req.query;
 
-        if (!projectId || !materialItemId) {
-            res.json({ success: false, message: "projectId and materialItemId are required" });
-            return;
+        if (!materialItemId) {
+            return res.status(400).json({ success: false, message: "materialItemId is required" });
+        }
+
+        if (!isValidId(materialItemId)) {
+            return res.status(400).json({ success: false, message: "Invalid materialItemId" });
         }
 
         const movements = await MaterialStockMovement.find({ projectId, materialItemId })
@@ -133,41 +159,48 @@ export const getMovementsByMaterial = async (req, res) => {
             .populate("createdBy", "name")
             .sort({ createdAt: -1 });
 
-        res.json({ success: true, movements });
+        return res.status(200).json({ success: true, movements });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
 // ─── Usage Logs ───────────────────────────────────────────────────────────────
 
+// @desc    Log material usage against a task (atomic — prevents negative stock race condition)
+// @route   POST /api/materials/usage-logs
+// @access  Site Engineer / Store Keeper
 export const logUsage = async (req, res) => {
     try {
-        const { projectId, taskId, materialItemId, quantityUsed, usageDate } = req.body;
+        const { taskId, materialItemId, quantityUsed, usageDate } = req.body;
+        const projectId = req.project._id;
 
-        const log = await MaterialUsageLog.create({
+        const result = await MaterialService.logUsage(
             projectId,
             taskId,
             materialItemId,
             quantityUsed,
-            usageDate,
-            createdBy: req.user._id,
-        });
+            req.user._id,
+            usageDate
+        );
 
-        res.json({ success: true, message: "Usage logged successfully", log });
+        return res.status(201).json({
+            success: true,
+            message: "Usage logged successfully",
+            log: result.log,
+            remainingStock: result.remainingStock,
+        });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Get all non-voided usage logs for a project
+// @route   GET /api/materials/usage-logs?projectId=xxx
+// @access  Private
 export const getUsageByProject = async (req, res) => {
     try {
-        const { projectId } = req.query;
-
-        if (!projectId) {
-            res.json({ success: false, message: "projectId query parameter is required" });
-            return;
-        }
+        const projectId = req.project._id;
 
         const logs = await MaterialUsageLog.find({ projectId, isVoided: false })
             .populate("materialItemId", "name unit category")
@@ -175,19 +208,26 @@ export const getUsageByProject = async (req, res) => {
             .populate("createdBy", "name")
             .sort({ usageDate: -1 });
 
-        res.json({ success: true, logs });
+        return res.status(200).json({ success: true, logs });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Get usage logs for a specific task
+// @route   GET /api/materials/usage-logs/by-task?projectId=xxx&taskId=yyy
+// @access  Private
 export const getUsageByTask = async (req, res) => {
     try {
-        const { projectId, taskId } = req.query;
+        const projectId = req.project._id;
+        const { taskId } = req.query;
 
-        if (!projectId || !taskId) {
-            res.json({ success: false, message: "projectId and taskId are required" });
-            return;
+        if (!taskId) {
+            return res.status(400).json({ success: false, message: "taskId is required" });
+        }
+
+        if (!isValidId(taskId)) {
+            return res.status(400).json({ success: false, message: "Invalid taskId" });
         }
 
         const logs = await MaterialUsageLog.find({ projectId, taskId, isVoided: false })
@@ -195,29 +235,27 @@ export const getUsageByTask = async (req, res) => {
             .populate("createdBy", "name")
             .sort({ usageDate: -1 });
 
-        res.json({ success: true, logs });
+        return res.status(200).json({ success: true, logs });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Void a usage log entry (restores stock)
+// @route   PATCH /api/materials/usage-logs/:id/void
+// @access  Admin / Store Keeper
 export const voidUsage = async (req, res) => {
     try {
-        const { voidReason } = req.body;
-
-        const log = await MaterialUsageLog.findByIdAndUpdate(
-            req.params.id,
-            { isVoided: true, voidReason },
-            { new: true }
-        );
-
-        if (!log) {
-            res.json({ success: false, message: "Usage log not found" });
-            return;
+        if (!isValidId(req.params.id)) {
+            return res.status(400).json({ success: false, message: "Invalid usage log ID" });
         }
 
-        res.json({ success: true, message: "Usage log voided successfully", log });
+        const { voidReason } = req.body;
+
+        const log = await MaterialService.voidUsage(req.params.usageLogId, voidReason, req.user._id);
+
+        return res.status(200).json({ success: true, message: "Usage log voided and stock restored successfully", log });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };

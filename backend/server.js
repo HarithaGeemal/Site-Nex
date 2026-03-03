@@ -22,12 +22,35 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// API Routes
-app.use('/api/users', userRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/task-assignments', taskAssignmentRoutes);
-app.use('/api/issues', issueRoutes);
-app.use('/api/materials', materialRoutes);
+// ----------------------------------------
+// API Routes (Strict REST Nested Structure)
+// ----------------------------------------
+
+// Global User endpoints
+app.use('/api/users', express.json(), userRoutes);
+
+// Core Project Base endpoints
+app.use('/api/projects', express.json(), projectRoutes);
+
+// Nested Resource Routing
+// e.g. /api/projects/:projectId/tasks
+app.use('/api/projects/:projectId/tasks', express.json(), taskRoutes);
+app.use('/api/projects/:projectId/members', express.json(), projectRoutes); // Handled inside projectRoutes potentially
+app.use('/api/projects/:projectId/issues', express.json(), issueRoutes);
+app.use('/api/projects/:projectId/materials', express.json(), materialRoutes);
+
+// Legacy flat routes (Kept temporarily to avoid breaking frontend immediately during transition)
+app.use('/api/tasks', express.json(), taskRoutes);
+app.use('/api/task-assignments', express.json(), taskAssignmentRoutes);
+app.use('/api/issues', express.json(), issueRoutes);
+app.use('/api/materials', express.json(), materialRoutes);
+
+app.use((req, res) => {
+    res.status(404).json({
+        message: "Route not found",
+        method: req.method,
+        path: req.originalUrl
+    });
+});
 
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));

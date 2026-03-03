@@ -8,9 +8,13 @@ const materialItemSchema = new mongoose.Schema(
             enum: ["Structural", "Electrical", "Plumbing", "Finishing", "Other"],
             default: "Other",
         },
-        unit: { type: String, required: true, trim: true }, // kg, m, pcs, litres
-        defaultUnitCost: { type: Number, min: 0, default: 0 },
-        minStockThreshold: { type: Number, min: 0, default: 0 },
+        unit: { type: String, required: true }, // e.g., 'kg', 'bags', 'meters'
+        defaultUnitCost: { type: Number, default: 0 },
+        minStockThreshold: { type: Number, default: 0 },
+
+        // Material caching field
+        currentStock: { type: Number, default: 0 },
+
         isArchived: { type: Boolean, default: false },
     },
     { timestamps: true }

@@ -1,10 +1,9 @@
 import React from 'react';
-import { useUser, useClerk } from '@clerk/clerk-react';
+import { useUser, UserButton } from '@clerk/clerk-react';
 import { usePMContext } from '../../context/PMContext';
 
 const NavBar = () => {
     const { user, isLoaded } = useUser();
-    const { signOut } = useClerk();
     const { issues } = usePMContext();
 
     // Count open/urgent issues as "notifications"
@@ -12,17 +11,10 @@ const NavBar = () => {
         i => i.status === 'Open' || i.status === 'In Progress'
     ).length;
 
-    // Build display name and initials from Clerk user
+    // Build display name from Clerk user
     const fullName = isLoaded && user
         ? (user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress || 'User')
         : '...';
-
-    const initials = isLoaded && user
-        ? ((user.firstName?.[0] || '') + (user.lastName?.[0] || '')).toUpperCase() || '?'
-        : '??';
-
-    // Use Clerk profile image if available
-    const avatarUrl = isLoaded && user?.hasImage ? user.imageUrl : null;
 
     return (
         <header className="bg-white border-b border-concrete-light sticky top-0 z-30 w-full flex items-center justify-between px-6 py-3">
@@ -74,23 +66,11 @@ const NavBar = () => {
                         <span className="text-sm font-semibold text-steel-blue block leading-tight">{fullName}</span>
                         <span className="text-xs text-concrete block">Project Manager</span>
                     </div>
-                    <button
-                        onClick={() => signOut({ redirectUrl: '/login' })}
-                        title="Sign out"
-                        className="flex text-sm border-2 border-transparent rounded-full focus:outline-none focus:border-steel-blue transition duration-150 ease-in-out"
-                    >
-                        {avatarUrl ? (
-                            <img
-                                src={avatarUrl}
-                                alt={fullName}
-                                className="h-10 w-10 rounded-full object-cover"
-                            />
-                        ) : (
-                            <div className="h-10 w-10 rounded-full bg-steel-blue text-white flex items-center justify-center font-bold text-base">
-                                {initials}
-                            </div>
-                        )}
-                    </button>
+                    <UserButton afterSignOut="/login" appearance={{
+                        elements: {
+                            userButtonAvatarBox: "w-10 h-10"
+                        }
+                    }} />
                 </div>
             </div>
         </header>

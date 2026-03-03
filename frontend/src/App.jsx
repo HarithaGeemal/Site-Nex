@@ -1,6 +1,6 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { SignedIn, SignedOut } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, useAuth } from "@clerk/clerk-react";
 import PMLayout from "./layouts/PMLayout";
 import Dashboard from "./pages/PM/Dashboard";
 import { PMProvider } from "./context/PMContext";
@@ -15,6 +15,18 @@ import DailyReports from "./pages/PM/DailyReports";
 import SafetyNotices from "./pages/PM/SafetyNotices";
 
 const App = () => {
+    const { getToken, isSignedIn } = useAuth();
+
+    React.useEffect(() => {
+        const printToken = async () => {
+            if (isSignedIn) {
+                const token = await getToken();
+                console.log("Welcome!", "Your Clerk Auth Token is:", token);
+            }
+        };
+        printToken();
+    }, [isSignedIn, getToken]);
+
     return (
         <PMProvider>
             <Routes>

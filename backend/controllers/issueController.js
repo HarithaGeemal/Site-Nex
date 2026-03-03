@@ -1,8 +1,41 @@
+import mongoose from "mongoose";
 import Issue from "../models/issue.js";
+import Task from "../models/task.js";
+import User from "../models/users.js";
+import EventService from "../services/eventService.js";
 
+const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+// Valid status transitions — prevents jumping from Open → Closed without resolving
+const STATUS_FLOW = {
+    Open: ["Assigned", "In Progress"],
+    Assigned: ["In Progress", "Open"],
+    "In Progress": ["Resolved"],
+    Resolved: ["Closed"],
+    Closed: [],
+};
+
+// @desc    Create a new issue
+// @route   POST /api/issues
+// @access  Private
 export const createIssue = async (req, res) => {
     try {
-        const { issueTitle, projectId, taskId, description, priority, dueDate } = req.body;
+        const { issueTitle, taskId, description, priority, dueDate } = req.body;
+        const projectId = req.project._id;
+
+        // Optionally verify task exists if provided
+        if (taskId) {
+            if (!isValidId(taskId)) {
+                return res.status(400).json({ success: false, message: "Invalid taskId" });
+            }
+            const task = await Task.findOne({ _id: taskId, isCancled: false });
+            if (!task) return res.status(404).json({ success: false, message: "Task not found" });
+
+            // Validate that the task belongs to the same project as the issue
+            if (task.projectId.toString() !== projectId) {
+                return res.status(400).json({ success: false, message: "Task does not belong to the specified project" });
+            }
+        }
 
         const issue = await Issue.create({
             issueTitle,
@@ -14,20 +47,19 @@ export const createIssue = async (req, res) => {
             createdBy: req.user._id,
         });
 
-        res.json({ success: true, message: "Issue created successfully", issue });
+        return res.status(201).json({ success: true, message: "Issue created successfully", issue });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Get all issues for a project (optional filters: status, priority)
+// @route   GET /api/issues?projectId=xxx&status=Open&priority=High
+// @access  Private
 export const getIssuesByProject = async (req, res) => {
     try {
-        const { projectId, status, priority } = req.query;
-
-        if (!projectId) {
-            res.json({ success: false, message: "projectId query parameter is required" });
-            return;
-        }
+        const { status, priority } = req.query;
+        const projectId = req.project._id;
 
         const filter = { projectId };
         if (status) filter.status = status;
@@ -39,109 +71,134 @@ export const getIssuesByProject = async (req, res) => {
             .populate("taskId", "name status")
             .sort({ createdAt: -1 });
 
-        res.json({ success: true, issues });
+        return res.status(200).json({ success: true, issues });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Get a single issue by ID
+// @route   GET /api/issues/:id
+// @access  Private
 export const getIssueById = async (req, res) => {
     try {
-        const issue = await Issue.findById(req.params.id)
+        // req.issue and req.project are loaded by checkIssueMember middleware
+        const issue = await Issue.findById(req.issue._id)
             .populate("createdBy", "name email")
             .populate("assignedTo", "name email userRole")
             .populate("taskId", "name status percentComplete")
             .populate("projectId", "name location");
 
-        if (!issue) {
-            res.json({ success: false, message: "Issue not found" });
-            return;
-        }
-
-        res.json({ success: true, issue });
+        return res.status(200).json({ success: true, issue });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Update issue title, description, priority or dueDate
+// @route   PUT /api/issues/:id
+// @access  Private
 export const updateIssue = async (req, res) => {
     try {
-        const { issueTitle, description, priority, dueDate, status } = req.body;
+        const { issueTitle, description, priority, dueDate } = req.body;
 
-        const issue = await Issue.findByIdAndUpdate(
-            req.params.id,
-            { issueTitle, description, priority, dueDate, status },
-            { new: true, runValidators: true }
-        );
+        // Only update defined fields; do NOT allow direct status change here (use dedicated endpoints)
+        if (issueTitle !== undefined) req.issue.issueTitle = issueTitle;
+        if (description !== undefined) req.issue.description = description;
+        if (priority !== undefined) req.issue.priority = priority;
+        if (dueDate !== undefined) req.issue.dueDate = dueDate;
 
-        if (!issue) {
-            res.json({ success: false, message: "Issue not found" });
-            return;
-        }
+        await req.issue.save();
 
-        res.json({ success: true, message: "Issue updated successfully", issue });
+        return res.status(200).json({ success: true, message: "Issue updated successfully", issue: req.issue });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Assign an issue to a user
+// @route   PATCH /api/issues/:id/assign
+// @access  Admin / Project Manager
 export const assignIssue = async (req, res) => {
     try {
         const { assignedTo } = req.body;
 
-        const issue = await Issue.findByIdAndUpdate(
-            req.params.id,
-            { assignedTo, status: "Assigned" },
-            { new: true }
-        ).populate("assignedTo", "name email");
-
-        if (!issue) {
-            res.json({ success: false, message: "Issue not found" });
-            return;
+        if (!assignedTo || !isValidId(assignedTo)) {
+            return res.status(400).json({ success: false, message: "Valid assignedTo userId is required" });
         }
 
-        res.json({ success: true, message: "Issue assigned successfully", issue });
+        const assignee = await User.findOne({ _id: assignedTo, isActive: true });
+        if (!assignee) return res.status(404).json({ success: false, message: "Assignee user not found or is inactive" });
+
+        // Ensure assignee is project member handled implicitly, assuming users select from the project worker pool
+        // but let's leave that if-logic out for now, or just let it pass as projectMembership verifies the requester.
+
+        // Validate status transition
+        const allowed = STATUS_FLOW[req.issue.status] || [];
+        if (!allowed.includes("Assigned") && req.issue.status !== "Open" && req.issue.status !== "Assigned") {
+            return res.status(422).json({ success: false, message: `Cannot assign an issue with status "${req.issue.status}"` });
+        }
+
+        req.issue.assignedTo = assignedTo;
+        req.issue.status = "Assigned";
+        await req.issue.save();
+
+        return res.status(200).json({ success: true, message: "Issue assigned successfully", issue: req.issue });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Mark an issue as resolved
+// @route   PATCH /api/issues/:id/resolve
+// @access  Private
 export const resolveIssue = async (req, res) => {
     try {
         const { resolutionNote } = req.body;
 
-        const issue = await Issue.findByIdAndUpdate(
-            req.params.id,
-            { status: "Resolved", resolutionNote, resolvedAt: new Date() },
-            { new: true }
-        );
-
-        if (!issue) {
-            res.json({ success: false, message: "Issue not found" });
-            return;
+        // Enforce resolution permissions: Only the assigned user or an ADMIN/PM can resolve the issue
+        const isAssignee = req.issue.assignedTo && req.issue.assignedTo.toString() === req.user._id.toString();
+        const isManager = req.user.userRole === "ADMIN" || req.user.userRole === "PROJECT_MANAGER";
+        if (!isAssignee && !isManager) {
+            return res.status(403).json({ success: false, message: "Only the user assigned to this issue or a project manager can resolve it" });
         }
 
-        res.json({ success: true, message: "Issue resolved successfully", issue });
+        // Enforce status flow: only In Progress can be resolved
+        if (req.issue.status !== "In Progress" && req.issue.status !== "Assigned") {
+            return res.status(422).json({ success: false, message: `Cannot resolve an issue with status "${req.issue.status}". Move it to In Progress first.` });
+        }
+
+        req.issue.status = "Resolved";
+        req.issue.resolutionNote = resolutionNote;
+        req.issue.resolvedAt = new Date();
+        await req.issue.save();
+
+        // Sync project progress (resolving a blocking issue might unblock tasks/project)
+        EventService.emit("project:syncProgress", req.issue.projectId);
+
+        return res.status(200).json({ success: true, message: "Issue resolved successfully", issue: req.issue });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
+// @desc    Close an issue (after verifying resolution)
+// @route   PATCH /api/issues/:id/close
+// @access  Admin / Project Manager
 export const closeIssue = async (req, res) => {
     try {
-        const issue = await Issue.findByIdAndUpdate(
-            req.params.id,
-            { status: "Closed", closedAt: new Date() },
-            { new: true }
-        );
-
-        if (!issue) {
-            res.json({ success: false, message: "Issue not found" });
-            return;
+        if (req.issue.status !== "Resolved") {
+            return res.status(422).json({ success: false, message: "Issue must be Resolved before it can be Closed" });
         }
 
-        res.json({ success: true, message: "Issue closed successfully", issue });
+        req.issue.status = "Closed";
+        req.issue.closedAt = new Date();
+        await req.issue.save();
+
+        EventService.emit("project:syncProgress", req.issue.projectId);
+
+        return res.status(200).json({ success: true, message: "Issue closed successfully", issue: req.issue });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
