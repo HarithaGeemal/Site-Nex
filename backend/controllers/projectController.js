@@ -11,6 +11,24 @@ const MEMBER_ROLES = ["PROJECT_MANAGER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", 
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
+const formatProjectDates = (p) => {
+    const obj = p.toObject ? p.toObject() : p;
+
+    return {
+        ...obj,
+        startDateReadable: new Date(obj.startDate).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+        }),
+        endDateReadable: new Date(obj.endDate).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+        }),
+    };
+};
+
 // @desc    Create a new project
 // @route   POST /api/projects
 // @access  Admin
@@ -37,7 +55,7 @@ export const createProject = async (req, res) => {
             isPrimary: true
         });
 
-        return res.status(201).json({ success: true, message: "Project created successfully", project });
+        return res.status(201).json({ success: true, message: "Project created successfully", project: formatProjectDates(project) });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }

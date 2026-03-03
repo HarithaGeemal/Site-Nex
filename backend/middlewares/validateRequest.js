@@ -16,11 +16,11 @@ export const validateRequest = (schemas) => {
             if (schemas.params) {
                 req.params = schemas.params.parse(req.params);
             }
-            next();
         } catch (error) {
             if (error instanceof ZodError) {
                 // Map zod errors into a friendly object
-                const formattedErrors = error.errors.map(err => ({
+                const issues = error.errors || error.issues || [];
+                const formattedErrors = issues.map(err => ({
                     field: err.path.join("."),
                     message: err.message
                 }));
@@ -28,5 +28,8 @@ export const validateRequest = (schemas) => {
             }
             return res.status(500).json({ success: false, message: "Internal validation error" });
         }
+
+        // Call next outside try-catch so it doesn't catch downstream errors
+        next();
     };
 };

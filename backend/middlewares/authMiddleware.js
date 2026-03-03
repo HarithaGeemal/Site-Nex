@@ -1,4 +1,4 @@
-import { createClerkClient } from "@clerk/backend";
+import { createClerkClient, verifyToken } from "@clerk/backend";
 import User from "../models/users.js";
 
 const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
@@ -15,7 +15,7 @@ export const requireClerkToken = async (req, res, next) => {
         const token = authHeader.split(" ")[1];
 
         // Verify with Clerk — throws if token is invalid/expired
-        const { sub: clerkUserId } = await clerkClient.verifyToken(token);
+        const { sub: clerkUserId } = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
 
         req.auth = { userId: clerkUserId };
         next();
@@ -37,7 +37,7 @@ const protect = async (req, res, next) => {
         console.log("Auth token on login:", token);
 
         // Verify with Clerk — throws if token is invalid/expired
-        const { sub: clerkUserId } = await clerkClient.verifyToken(token);
+        const { sub: clerkUserId } = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
 
         // Look up the user in our own DB using the stored Clerk userId string
         let user = await User.findOne({ userId: clerkUserId });
@@ -55,7 +55,7 @@ const protect = async (req, res, next) => {
                     userId: clerkUserId,
                     name,
                     email: email.toLowerCase(),
-                    userRole: "SITE_ENGINEER", // Default fallback role
+                    userRole: "WORKER", // Default fallback role
                     isActive: true
                 });
             } catch (clerkError) {
