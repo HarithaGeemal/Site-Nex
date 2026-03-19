@@ -3,6 +3,61 @@ import mongoose from "mongoose";
 
 class TaskService {
     /**
+     * Automatically shift dates of dependent tasks if their parent's endDate is moved past their startDate.
+     * @param {string} taskId
+     */
+    static async autoRescheduleDependentTasks(taskId) {
+        const task = await Task.findById(taskId);
+        if (!task || task.isCancled) return;
+
+        // Find immediately dependent tasks 
+        const dependentTasks = await Task.find({ dependencyTaskIds: taskId, isCancled: false });
+
+        for (const depTask of dependentTasks) {
+            if (task.endDate && depTask.startDate) {
+                const parentEnd = new Date(task.endDate);
+                const depStart = new Date(depTask.startDate);
+
+                if (depStart < parentEnd) {
+                    const durationMs = new Date(depTask.endDate).getTime() - depStart.getTime();
+
+                    // Shift dependent task dates forward
+                    depTask.startDate = parentEnd;
+                    depTask.endDate = new Date(parentEnd.getTime() + durationMs);
+
+                    await depTask.save();
+
+                    // Recursively shift downstream dependents
+                    await TaskService.autoRescheduleDependentTasks(depTask._id);
+                }
+            }
+        }
+    }
+
+    /**
+     * Add a progress note to a task
+     */
+    static async addProgressNote(taskId, note, userId) {
+        const task = await Task.findById(taskId);
+        if (!task) throw new Error("Task not found");
+
+        task.progressNotes.push({ note, createdBy: userId });
+        await task.save();
+
+        return task;
+    }
+
+    /**
+     * Get notes for a task, sorted descending by creation date
+     */
+    static async getTaskNotes(taskId) {
+        const task = await Task.findById(taskId).populate("progressNotes.createdBy", "name email");
+        if (!task) throw new Error("Task not found");
+
+        return task.progressNotes.sort((a, b) => b.createdAt - a.createdAt);
+    }
+
+    /**
      * Completes a DFS graph traversal to ensure adding `newDependencyIds` to `taskId`
      * does not create a cycle (e.g. A -> B -> C -> A).
      * 

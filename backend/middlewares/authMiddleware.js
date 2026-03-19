@@ -55,7 +55,7 @@ const protect = async (req, res, next) => {
                     userId: clerkUserId,
                     name,
                     email: email.toLowerCase(),
-                    userRole: "WORKER", // Default fallback role
+                    userRole: "SITE_ENGINEER", // Default fallback role
                     isActive: true
                 });
             } catch (clerkError) {

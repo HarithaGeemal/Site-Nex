@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const issueSchema = new mongoose.Schema(
     {
-        issueTitle: { type: String, required: true, trim: true },
+        title: { type: String, required: true, trim: true },
 
         projectId: {
             type: mongoose.Schema.Types.ObjectId,
@@ -17,6 +17,12 @@ const issueSchema = new mongoose.Schema(
         },
 
         description: { type: String, required: true, trim: true },
+
+        type: {
+            type: String,
+            enum: ["Defect", "Safety", "Material Shortage", "Design Request", "Other"],
+            required: true,
+        },
 
         status: {
             type: String,

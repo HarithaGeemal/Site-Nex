@@ -18,7 +18,7 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
  */
 export const loadProject = async (req, res, next) => {
     try {
-        const projectId = req.params.projectId || req.body.projectId || req.query.projectId;
+        const projectId = req.params.projectId;
         if (!projectId) return res.status(400).json({ success: false, message: "Missing projectId" });
         if (!isValidId(projectId)) return res.status(400).json({ success: false, message: "Invalid projectId" });
 
@@ -37,7 +37,7 @@ export const loadProject = async (req, res, next) => {
  */
 export const loadTask = async (req, res, next) => {
     try {
-        const taskId = req.params.taskId || req.body.taskId || req.query.taskId;
+        const taskId = req.params.taskId;
         if (!taskId) return res.status(400).json({ success: false, message: "Missing taskId" });
         if (!isValidId(taskId)) return res.status(400).json({ success: false, message: "Invalid taskId" });
 
@@ -60,7 +60,7 @@ export const loadTask = async (req, res, next) => {
  */
 export const loadIssue = async (req, res, next) => {
     try {
-        const issueId = req.params.issueId || req.body.issueId || req.query.issueId || req.params.id;
+        const issueId = req.params.issueId;
         if (!issueId) return res.status(400).json({ success: false, message: "Missing issueId" });
         if (!isValidId(issueId)) return res.status(400).json({ success: false, message: "Invalid issueId" });
 
@@ -82,7 +82,7 @@ export const loadIssue = async (req, res, next) => {
  */
 export const loadAssignment = async (req, res, next) => {
     try {
-        const assignmentId = req.params.assignmentId || req.body.assignmentId || req.query.assignmentId || req.params.id;
+        const assignmentId = req.params.assignmentId;
         if (!assignmentId) return res.status(400).json({ success: false, message: "Missing assignmentId" });
         if (!isValidId(assignmentId)) return res.status(400).json({ success: false, message: "Invalid assignmentId" });
 
@@ -106,7 +106,7 @@ export const loadAssignment = async (req, res, next) => {
  */
 export const loadUsageLog = async (req, res, next) => {
     try {
-        const usageLogId = req.params.usageLogId || req.body.usageLogId || req.query.usageLogId || req.params.id;
+        const usageLogId = req.params.usageLogId;
         if (!usageLogId) return res.status(400).json({ success: false, message: "Missing usageLogId" });
         if (!isValidId(usageLogId)) return res.status(400).json({ success: false, message: "Invalid usageLogId" });
 
@@ -132,19 +132,18 @@ const ROLE_HIERARCHY = {
     PROJECT_MANAGER: 40,
     SITE_ENGINEER: 30,
     STORE_KEEPER: 20,
-    ASSISTANT_ENGINEER: 10,
-    MEMBER: 0
+    ASSISTANT_ENGINEER: 10
 };
 
 /**
  * Ensures req.user is a valid member of req.project and has at least the minimum allowed role.
  * Global ADMIN bypasses all project role checks.
  */
-export const authorizeProjectAccess = (minimumRole = "MEMBER") => {
+export const authorizeProjectAccess = (minimumRole = "ASSISTANT_ENGINEER") => {
     return async (req, res, next) => {
         try {
             if (!req.user) return res.status(401).json({ success: false, message: "Not authenticated" });
-            if (!req.project) return res.status(500).json({ success: false, message: "Project not loaded for authorization" });
+            if (!req.project) return res.status(400).json({ success: false, message: "Project context is required. Please use explicitly nested /api/projects/:projectId paths." });
 
             // Global Admins have implicit OWNER level access to everything
             if (req.user.userRole === "ADMIN") {

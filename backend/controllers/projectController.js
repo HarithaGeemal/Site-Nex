@@ -34,7 +34,7 @@ const formatProjectDates = (p) => {
 // @access  Admin
 export const createProject = async (req, res) => {
     try {
-        const { name, location, startDate, endDate, description, budget, status, progress } = req.body;
+        const { name, location, startDate, endDate, description, budget, status, progress, clientName, projectCode, plannedBudget, actualBudgetUsed } = req.body;
 
         const project = await Project.create({
             name,
@@ -45,6 +45,10 @@ export const createProject = async (req, res) => {
             budget,
             status,
             progress,
+            clientName,
+            projectCode,
+            plannedBudget,
+            actualBudgetUsed
         });
 
         // Automatically add the creator as the OWNER
@@ -113,7 +117,7 @@ export const updateProject = async (req, res) => {
     try {
 
         // Do not allow manual status or progress updates here — they are calculated dynamically via tasks/issues
-        const { name, location, startDate, endDate, description, budget } = req.body;
+        const { name, location, startDate, endDate, description, budget, clientName, projectCode, plannedBudget, actualBudgetUsed } = req.body;
 
         // Only update defined fields
         if (name !== undefined) req.project.name = name;
@@ -122,6 +126,10 @@ export const updateProject = async (req, res) => {
         if (endDate !== undefined) req.project.endDate = endDate;
         if (description !== undefined) req.project.description = description;
         if (budget !== undefined) req.project.budget = budget;
+        if (clientName !== undefined) req.project.clientName = clientName;
+        if (projectCode !== undefined) req.project.projectCode = projectCode;
+        if (plannedBudget !== undefined) req.project.plannedBudget = plannedBudget;
+        if (actualBudgetUsed !== undefined) req.project.actualBudgetUsed = actualBudgetUsed;
 
         await req.project.save();
 
@@ -149,7 +157,7 @@ export const deleteProject = async (req, res) => {
 // @access  Admin / Project Manager
 export const addMember = async (req, res) => {
     try {
-        if (!isValidId(req.params.id)) {
+        if (!isValidId(req.params.projectId)) {
             return res.status(400).json({ success: false, message: "Invalid project ID" });
         }
 
@@ -163,10 +171,21 @@ export const addMember = async (req, res) => {
         const userExists = await User.findOne({ _id: userId, isActive: true });
         if (!userExists) return res.status(404).json({ success: false, message: "User not found or inactive" });
 
-        // Warn if membership exists
-        const existingMembership = await ProjectMembership.findOne({ projectId: req.project._id, userId, removedAt: null });
+        // Handle existing membership (active or soft-deleted)
+        const existingMembership = await ProjectMembership.findOne({ projectId: req.project._id, userId });
+
         if (existingMembership) {
-            return res.status(409).json({ success: false, message: "User is already an active member of this project" });
+            if (!existingMembership.removedAt) {
+                return res.status(409).json({ success: false, message: "User is already an active member of this project" });
+            }
+
+            // Re-activate soft-deleted member
+            existingMembership.removedAt = null;
+            existingMembership.role = role;
+            existingMembership.isPrimary = isPrimary || false;
+            await existingMembership.save();
+
+            return res.status(200).json({ success: true, message: "Member re-added successfully" });
         }
 
         // Prevent multiple isPrimary members for the same role
@@ -223,6 +242,30 @@ export const removeMember = async (req, res) => {
         );
 
         return res.status(200).json({ success: true, message: "Member removed and related assignments cleaned up successfully" });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Get project dashboard summary KPIs
+// @route   GET /api/projects/:id/dashboard
+// @access  Project Member
+export const getProjectDashboard = async (req, res) => {
+    try {
+        const dashboardData = await ProjectService.getProjectDashboard(req.project._id);
+        return res.status(200).json({ success: true, data: dashboardData });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Get project tasks in Gantt chart format
+// @route   GET /api/projects/:id/gantt
+// @access  Project Member
+export const getProjectGantt = async (req, res) => {
+    try {
+        const ganttData = await ProjectService.getProjectGantt(req.project._id);
+        return res.status(200).json({ success: true, data: ganttData });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }

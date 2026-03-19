@@ -11,6 +11,12 @@ const projectSchema = new mongoose.Schema(
         description: { type: String },
         budget: { type: Number, min: 0 },
 
+        // Additions for Project Management
+        clientName: { type: String },
+        projectCode: { type: String, unique: true, sparse: true },
+        plannedBudget: { type: Number, min: 0 },
+        actualBudgetUsed: { type: Number, min: 0, default: 0 },
+
         status: {
             type: String,
             enum: ["Planning", "Active", "On Hold", "Completed"],

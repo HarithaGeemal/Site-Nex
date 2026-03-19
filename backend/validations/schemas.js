@@ -17,6 +17,26 @@ export const projectIdParamSchema = z.object({
     projectId: objectId,
 });
 
+export const taskIdParamSchema = z.object({
+    taskId: objectId,
+});
+
+export const issueIdParamSchema = z.object({
+    issueId: objectId,
+});
+
+export const assignmentIdParamSchema = z.object({
+    assignmentId: objectId,
+});
+
+export const usageLogIdParamSchema = z.object({
+    usageLogId: objectId,
+});
+
+export const userIdParamSchema = z.object({
+    userId: objectId,
+});
+
 export const taskParamSchema = z.object({
     projectId: objectId,
     taskId: objectId,
@@ -51,13 +71,23 @@ export const syncUserSchema = z.object({
 export const createProjectSchema = z.object({
     name: z.string().min(1),
     location: z.string().min(1),
-    startDate: z.string().datetime() || z.string(), // ISO string
-    endDate: z.string().datetime() || z.string(),
+    startDate: z.string(), // ISO string
+    endDate: z.string(),
     description: z.string().optional(),
     budget: z.number().min(0).optional(),
+    clientName: z.string().optional(),
+    projectCode: z.string().optional(),
+    plannedBudget: z.number().min(0).optional(),
+    actualBudgetUsed: z.number().min(0).optional(),
 });
 
 export const updateProjectSchema = createProjectSchema.partial();
+
+export const addProjectMemberSchema = z.object({
+    userId: objectId,
+    role: z.enum(["PROJECT_MANAGER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER"]),
+    isPrimary: z.boolean().optional(),
+});
 
 // ----------------------------------------
 // Tasks
@@ -65,15 +95,45 @@ export const updateProjectSchema = createProjectSchema.partial();
 export const createTaskSchema = z.object({
     name: z.string().min(1),
     description: z.string().min(1),
-    status: z.enum(["Pending", "In Progress", "Completed", "On Hold", "Cancelled"]).optional(),
+    status: z.enum(["Not Started", "In Progress", "Under Review", "Completed", "Cancelled", "On Hold"]).optional(),
     priority: z.enum(["Low", "Medium", "High", "Critical"]).optional(),
     startDate: z.string(),
     endDate: z.string(),
     percentComplete: z.number().min(0).max(100).optional(),
     dependencyTaskIds: z.array(objectId).optional(),
+    estimatedHours: z.number().min(0).optional(),
+    actualHours: z.number().min(0).optional(),
 });
 
 export const updateTaskSchema = createTaskSchema.partial();
+
+export const addProgressNoteSchema = z.object({
+    note: z.string().min(1, "Note content cannot be empty"),
+});
+
+// ----------------------------------------
+// Task Assignments
+// ----------------------------------------
+export const createTaskAssignmentSchema = z.object({
+    taskId: objectId,
+    userId: objectId,
+    roleOnTask: z.string().min(1),
+    expectedHours: z.number().min(0).optional(),
+});
+
+export const updateAssignmentHoursSchema = z.object({
+    expectedHours: z.number().min(0).optional(),
+    actualHours: z.number().min(0).optional(),
+    workStarted: z.boolean().optional(),
+});
+
+export const removeAssignmentSchema = z.object({
+    removedReason: z.string().optional(),
+});
+
+export const getAssignmentsQuerySchema = z.object({
+    taskId: objectId,
+});
 
 // ----------------------------------------
 // Issues
@@ -84,6 +144,22 @@ export const createIssueSchema = z.object({
     description: z.string().min(1),
     type: z.enum(["Defect", "Safety", "Material Shortage", "Design Request", "Other"]),
     priority: z.enum(["Low", "Medium", "High", "Critical"]),
+    dueDate: z.string().optional(),
+});
+
+export const updateIssueSchema = createIssueSchema.partial();
+
+export const resolveIssueSchema = z.object({
+    resolutionNote: z.string().min(1),
+});
+
+export const assignIssueSchema = z.object({
+    assignedTo: objectId,
+});
+
+export const getIssuesQuerySchema = z.object({
+    status: z.enum(["Open", "Assigned", "In Progress", "Resolved", "Closed"]).optional(),
+    priority: z.enum(["Low", "Medium", "High", "Critical"]).optional(),
 });
 
 // ----------------------------------------
@@ -111,4 +187,12 @@ export const logUsageSchema = z.object({
     materialItemId: objectId,
     quantityUsed: z.number().positive(),
     usageDate: z.string()
+});
+
+export const getMovementsByMaterialQuerySchema = z.object({
+    materialItemId: objectId,
+});
+
+export const getUsageByTaskQuerySchema = z.object({
+    taskId: objectId,
 });

@@ -13,7 +13,7 @@ const taskSchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: ["Not Started", "In Progress", "Under Review", "Completed"],
+            enum: ["Not Started", "In Progress", "Under Review", "Completed", "Cancelled", "On Hold"],
             default: "Not Started",
         },
 
@@ -30,7 +30,18 @@ const taskSchema = new mongoose.Schema(
 
         dependencyTaskIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "tasks" }],
         isCancled: { type: Boolean, default: false },
-        cancellationReason: { type: String }
+        cancellationReason: { type: String },
+
+        // Additions for Task Management
+        estimatedHours: { type: Number, min: 0 },
+        actualHours: { type: Number, min: 0, default: 0 },
+        progressNotes: [
+            {
+                note: { type: String, required: true },
+                createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+                createdAt: { type: Date, default: Date.now },
+            }
+        ]
 
     },
     { timestamps: true }

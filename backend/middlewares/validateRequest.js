@@ -11,7 +11,7 @@ export const validateRequest = (schemas) => {
                 req.body = schemas.body.parse(req.body);
             }
             if (schemas.query) {
-                req.query = schemas.query.parse(req.query);
+                Object.assign(req.query, schemas.query.parse(req.query));
             }
             if (schemas.params) {
                 req.params = schemas.params.parse(req.params);

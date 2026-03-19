@@ -20,7 +20,7 @@ const STATUS_FLOW = {
 // @access  Private
 export const createIssue = async (req, res) => {
     try {
-        const { issueTitle, taskId, description, priority, dueDate } = req.body;
+        const { title, type, taskId, description, priority, dueDate } = req.body;
         const projectId = req.project._id;
 
         // Optionally verify task exists if provided
@@ -32,13 +32,14 @@ export const createIssue = async (req, res) => {
             if (!task) return res.status(404).json({ success: false, message: "Task not found" });
 
             // Validate that the task belongs to the same project as the issue
-            if (task.projectId.toString() !== projectId) {
+            if (task.projectId.toString() !== projectId.toString()) {
                 return res.status(400).json({ success: false, message: "Task does not belong to the specified project" });
             }
         }
 
         const issue = await Issue.create({
-            issueTitle,
+            title,
+            type,
             projectId,
             taskId: taskId || null,
             description,
@@ -100,10 +101,11 @@ export const getIssueById = async (req, res) => {
 // @access  Private
 export const updateIssue = async (req, res) => {
     try {
-        const { issueTitle, description, priority, dueDate } = req.body;
+        const { title, type, description, priority, dueDate } = req.body;
 
         // Only update defined fields; do NOT allow direct status change here (use dedicated endpoints)
-        if (issueTitle !== undefined) req.issue.issueTitle = issueTitle;
+        if (title !== undefined) req.issue.title = title;
+        if (type !== undefined) req.issue.type = type;
         if (description !== undefined) req.issue.description = description;
         if (priority !== undefined) req.issue.priority = priority;
         if (dueDate !== undefined) req.issue.dueDate = dueDate;

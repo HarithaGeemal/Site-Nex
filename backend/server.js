@@ -8,8 +8,12 @@ import userRoutes from './routes/userRoutes.js';
 import projectRoutes from './routes/projectRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
 import taskAssignmentRoutes from './routes/taskAssignmentRoutes.js';
-import issueRoutes from './routes/issueRoutes.js';
 import materialRoutes from './routes/materialRoutes.js';
+import issueRoutes from './routes/issueRoutes.js';
+import protect from './middlewares/authMiddleware.js';
+import { validateRequest } from './middlewares/validateRequest.js';
+import { loadProject } from './middlewares/rbacMiddleware.js';
+import { projectIdParamSchema } from './validations/schemas.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,15 +38,18 @@ app.use('/api/projects', express.json(), projectRoutes);
 
 // Nested Resource Routing
 // e.g. /api/projects/:projectId/tasks
-app.use('/api/projects/:projectId/tasks', express.json(), taskRoutes);
-app.use('/api/projects/:projectId/members', express.json(), projectRoutes); // Handled inside projectRoutes potentially
-app.use('/api/projects/:projectId/issues', express.json(), issueRoutes);
-app.use('/api/projects/:projectId/materials', express.json(), materialRoutes);
+const projectScopedMiddlewares = [
+    protect,
+    validateRequest({ params: projectIdParamSchema }),
+    loadProject
+];
 
-// Legacy flat routes (Kept temporarily to avoid breaking frontend immediately during transition)
-app.use('/api/tasks', express.json(), taskRoutes);
-app.use('/api/task-assignments', express.json(), taskAssignmentRoutes);
-app.use('/api/issues', express.json(), issueRoutes);
+app.use('/api/projects/:projectId/tasks', projectScopedMiddlewares, express.json(), taskRoutes);
+app.use('/api/projects/:projectId/issues', projectScopedMiddlewares, express.json(), issueRoutes);
+app.use('/api/projects/:projectId/materials', projectScopedMiddlewares, express.json(), materialRoutes);
+app.use('/api/projects/:projectId/task-assignments', projectScopedMiddlewares, express.json(), taskAssignmentRoutes);
+
+// Legacy flat route for global material catalog endpoints (/api/materials/items)
 app.use('/api/materials', express.json(), materialRoutes);
 
 app.use((req, res) => {

@@ -90,7 +90,7 @@ class MaterialService {
     /**
      * Voids a usage log and implicitly adds the stock back as a VOID_REVERT movement.
      */
-    static async voidUsageLog(usageLogId, voidReason, userId) {
+    static async voidUsage(usageLogId, voidReason, userId) {
         const session = await mongoose.startSession();
         session.startTransaction();
         try {
@@ -123,6 +123,50 @@ class MaterialService {
             await session.commitTransaction();
             session.endSession();
             return log;
+        } catch (error) {
+            await session.abortTransaction();
+            session.endSession();
+            throw error;
+        }
+    }
+
+    /**
+     * Voids all active usage logs for a specific project.
+     * Used when a project is deleted to restore the inventory correctly.
+     */
+    static async voidLogsForProject(projectId, userId, voidReason) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+            const logs = await MaterialUsageLog.find({ projectId, isVoided: false }).session(session);
+
+            for (const log of logs) {
+                log.isVoided = true;
+                log.voidReason = voidReason;
+                await log.save({ session });
+
+                await MaterialStockMovement.create(
+                    [{
+                        projectId: log.projectId,
+                        materialItemId: log.materialItemId,
+                        type: "VOID_REVERT",
+                        quantity: log.quantityUsed,
+                        note: `Void revert due to project deletion. Log ${log._id}. Reason: ${voidReason || "N/A"}`,
+                        createdBy: userId,
+                    }],
+                    { session }
+                );
+
+                await MaterialItem.findByIdAndUpdate(
+                    log.materialItemId,
+                    { $inc: { currentStock: log.quantityUsed } },
+                    { session }
+                );
+            }
+
+            await session.commitTransaction();
+            session.endSession();
+            return logs.length;
         } catch (error) {
             await session.abortTransaction();
             session.endSession();

@@ -3,11 +3,69 @@ import Task from "../models/task.js";
 import TaskAssignment from "../models/taskAssignment.js";
 import Issue from "../models/issue.js";
 import MaterialUsageLog from "../models/materialUsageLog.js";
+import ProjectMembership from "../models/projectMembership.js";
+import MaterialService from "./materialService.js";
 
 /**
  * Service to handle complex Project operations separated from the controller layer.
  */
 class ProjectService {
+    /**
+     * Get Project Dashboard KPIs
+     * @param {string} projectId 
+     */
+    static async getProjectDashboard(projectId) {
+        const project = await Project.findById(projectId);
+        if (!project) throw new Error("Project not found");
+
+        const tasks = await Task.find({ projectId, isCancled: false });
+        const totalTasks = tasks.length;
+        const completedTasks = tasks.filter(t => t.status === "Completed").length;
+
+        const openIssues = await Issue.countDocuments({
+            projectId,
+            status: { $nin: ["Resolved", "Closed"] }
+        });
+
+        const teamSize = await ProjectMembership.countDocuments({
+            projectId,
+            removedAt: null
+        });
+
+        let budgetUsedPercentage = 0;
+        if (project.plannedBudget && project.plannedBudget > 0) {
+            budgetUsedPercentage = (project.actualBudgetUsed / project.plannedBudget) * 100;
+        }
+
+        return {
+            totalTasks,
+            completedTasks,
+            openIssues,
+            teamSize,
+            budgetUsedPercentage
+        };
+    }
+
+    /**
+     * Get Gantt Chart format tasks
+     * @param {string} projectId 
+     */
+    static async getProjectGantt(projectId) {
+        const tasks = await Task.find({ projectId, isCancled: false })
+            .select("_id name startDate endDate dependencyTaskIds percentComplete status")
+            .sort({ startDate: 1 });
+
+        return tasks.map(t => ({
+            id: t._id,
+            name: t.name,
+            startDate: t.startDate,
+            endDate: t.endDate,
+            dependencies: t.dependencyTaskIds,
+            percentComplete: t.percentComplete,
+            status: t.status
+        }));
+    }
+
     /**
      * Soft deletes a project and cascades the deletion to all related entities.
      * @param {string} projectId 
@@ -49,15 +107,8 @@ class ProjectService {
             { status: "Closed", closedAt: new Date(), resolutionNote: "Automatically closed due to project deletion." }
         );
 
-        // 5. Material logs remain, but we might mark them voided if required?
-        // The user specified: "Deleting a project... leaves material logs... creates a reporting problem: Inventory report can show materials used in a project that 'does not exist'."
-        // We will explicitly void all active usage logs for this project so the stock returns to the cache.
-        // Or simply mark them as `isVoided` with a reason. True inventory systems would void them.
-
-        // Let's defer material usage log voids to the MaterialService or run it here:
-        // Because a void needs to restore stock, doing it blindly here without triggering $inc on MaterialItem is dangerous.
-        // We will emit an event or call MaterialService.voidLogsForProject(projectId) later. 
-        // For now, let's just mark the project as deleted. We'll handle the material log cascade when we write MaterialService.
+        // 5. Cascade void material usage logs
+        await MaterialService.voidLogsForProject(projectId, deletedByUserId, "Parent project deleted");
 
         return project;
     }

@@ -106,12 +106,17 @@ export const addStockMovement = async (req, res) => {
         const projectId = req.project._id;
 
         const movement = await MaterialService.addStockMovement(
-            projectId,
-            materialItemId,
-            type,
-            quantity,
-            req.user._id,
-            { supplier, deliveryDate, unitCost, note }
+            {
+                projectId,
+                materialItemId,
+                type,
+                quantity,
+                supplier,
+                deliveryDate,
+                unitCost,
+                note
+            },
+            req.user._id
         );
 
         return res.status(201).json({ success: true, message: "Stock movement recorded successfully", movement });
@@ -176,12 +181,14 @@ export const logUsage = async (req, res) => {
         const projectId = req.project._id;
 
         const result = await MaterialService.logUsage(
-            projectId,
-            taskId,
-            materialItemId,
-            quantityUsed,
-            req.user._id,
-            usageDate
+            {
+                projectId,
+                taskId,
+                materialItemId,
+                quantityUsed,
+                usageDate
+            },
+            req.user._id
         );
 
         return res.status(201).json({
@@ -242,11 +249,11 @@ export const getUsageByTask = async (req, res) => {
 };
 
 // @desc    Void a usage log entry (restores stock)
-// @route   PATCH /api/materials/usage-logs/:id/void
+// @route   PATCH /api/projects/:projectId/materials/usage-logs/:usageLogId/void
 // @access  Admin / Store Keeper
 export const voidUsage = async (req, res) => {
     try {
-        if (!isValidId(req.params.id)) {
+        if (!isValidId(req.params.usageLogId)) {
             return res.status(400).json({ success: false, message: "Invalid usage log ID" });
         }
 

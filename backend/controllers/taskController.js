@@ -13,7 +13,7 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 // @access  Admin / Project Manager
 export const createTask = async (req, res) => {
     try {
-        const { name, description, status, priority, startDate, endDate, percentComplete, dependencyTaskIds } = req.body;
+        const { name, description, status, priority, startDate, endDate, percentComplete, dependencyTaskIds, estimatedHours, actualHours } = req.body;
         const projectId = req.project._id;
 
         // Validate task dates fit within project dates
@@ -37,6 +37,8 @@ export const createTask = async (req, res) => {
             endDate,
             percentComplete: percentComplete || 0,
             dependencyTaskIds: dependencyTaskIds || [],
+            estimatedHours,
+            actualHours,
         });
 
         // Sync project progress asynchronously so we don't block the response (Point H)
@@ -86,7 +88,7 @@ export const getTaskById = async (req, res) => {
 // @access  Admin / Project Manager / Site Engineer
 export const updateTask = async (req, res) => {
     try {
-        const { name, description, status, priority, startDate, endDate, percentComplete, dependencyTaskIds } = req.body;
+        const { name, description, status, priority, startDate, endDate, percentComplete, dependencyTaskIds, estimatedHours, actualHours } = req.body;
 
         // Validate date bounds against the project if modifying dates
         if (startDate || endDate) {
@@ -115,6 +117,8 @@ export const updateTask = async (req, res) => {
         if (endDate !== undefined) req.task.endDate = endDate;
         if (percentComplete !== undefined) req.task.percentComplete = percentComplete;
         if (dependencyTaskIds !== undefined) req.task.dependencyTaskIds = dependencyTaskIds;
+        if (estimatedHours !== undefined) req.task.estimatedHours = estimatedHours;
+        if (actualHours !== undefined) req.task.actualHours = actualHours;
 
         // If trying to complete task, ensure no open issues exist
         if (req.task.status === "Completed" || req.task.percentComplete === 100) {
@@ -134,6 +138,10 @@ export const updateTask = async (req, res) => {
         }
 
         await req.task.save();
+
+        if (endDate !== undefined) {
+            await TaskService.autoRescheduleDependentTasks(req.task._id);
+        }
 
         // Sync project progress asynchronously
         EventService.emit("project:syncProgress", req.task.projectId);
@@ -169,6 +177,33 @@ export const cancelTask = async (req, res) => {
         EventService.emit("project:syncProgress", req.task.projectId);
 
         return res.status(200).json({ success: true, message: "Task cancelled successfully", task: req.task });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Add a progress note to a task
+// @route   POST /api/tasks/:id/notes
+// @access  Project Team
+export const addProgressNote = async (req, res) => {
+    try {
+        const { note } = req.body;
+        if (!note) return res.status(400).json({ success: false, message: "Note is required" });
+
+        const updatedTask = await TaskService.addProgressNote(req.task._id, note, req.user._id);
+        return res.status(201).json({ success: true, message: "Progress note added", task: updatedTask });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Get all progress notes for a task (descending by date)
+// @route   GET /api/tasks/:id/notes
+// @access  Project Member
+export const getTaskNotes = async (req, res) => {
+    try {
+        const notes = await TaskService.getTaskNotes(req.task._id);
+        return res.status(200).json({ success: true, notes });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }

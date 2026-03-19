@@ -7,7 +7,7 @@ const taskAssignmentSchema = new mongoose.Schema(
 
         roleOnTask: { type: String, required: true, trim: true },
 
-        expectedHours: { type: Number, min: 0, default: 0 }, 
+        expectedHours: { type: Number, min: 0, default: 0 },
         actualHours: { type: Number, min: 0, default: 0 },
 
         workStarted: { type: Boolean, default: false },
@@ -18,6 +18,6 @@ const taskAssignmentSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-taskAssignmentSchema.index({ taskId: 1, userId: 1 }, { unique: true });
+taskAssignmentSchema.index({ taskId: 1, userId: 1 }, { unique: true, partialFilterExpression: { removedAt: null } });
 
 export default mongoose.model("taskAssignments", taskAssignmentSchema);
