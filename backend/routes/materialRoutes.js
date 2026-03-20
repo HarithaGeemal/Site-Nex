@@ -23,28 +23,31 @@ import {
     getUsageByProject,
     getUsageByTask,
     voidUsage,
+    getMaterialUsageSummary,
 } from "../controllers/materialController.js";
 
-const router = express.Router();
+const catalogRouter = express.Router();
+const projectRouter = express.Router();
 
 // ── Material Catalog (global, not project-scoped) ────────────────────
-router.post("/items", protect, authorizeGlobalRole("ADMIN", "STORE_KEEPER"), validateRequest({ body: createMaterialItemSchema }), createMaterialItem);
-router.get("/items", protect, getAllMaterialItems);
-router.put("/items/:id", protect, authorizeGlobalRole("ADMIN", "STORE_KEEPER"), validateRequest({ params: idParamSchema }), updateMaterialItem);
-router.patch("/items/:id/archive", protect, authorizeGlobalRole("ADMIN"), validateRequest({ params: idParamSchema }), archiveMaterialItem);
+catalogRouter.post("/items", protect, authorizeGlobalRole("ADMIN", "STORE_KEEPER"), validateRequest({ body: createMaterialItemSchema }), createMaterialItem);
+catalogRouter.get("/items", protect, getAllMaterialItems);
+catalogRouter.put("/items/:id", protect, authorizeGlobalRole("ADMIN", "STORE_KEEPER"), validateRequest({ params: idParamSchema }), updateMaterialItem);
+catalogRouter.patch("/items/:id/archive", protect, authorizeGlobalRole("ADMIN"), validateRequest({ params: idParamSchema }), archiveMaterialItem);
 
 // ── Stock Movements (project-scoped) ─────────────────────────────────
 // project scoped middlewares (protect, id param validation, loadProject) are handled in server.js now
-router.post("/stock-movements", validateRequest({ body: addStockMovementSchema }), authorizeProjectAccess("STORE_KEEPER"), addStockMovement);
-router.get("/stock-movements", authorizeProjectAccess("STORE_KEEPER"), getMovementsByProject);
-router.get("/stock-movements/by-material", validateRequest({ query: getMovementsByMaterialQuerySchema }), authorizeProjectAccess("STORE_KEEPER"), getMovementsByMaterial);
+projectRouter.post("/stock-movements", validateRequest({ body: addStockMovementSchema }), authorizeProjectAccess("STORE_KEEPER"), addStockMovement);
+projectRouter.get("/stock-movements", authorizeProjectAccess("STORE_KEEPER"), getMovementsByProject);
+projectRouter.get("/stock-movements/by-material", validateRequest({ query: getMovementsByMaterialQuerySchema }), authorizeProjectAccess("STORE_KEEPER"), getMovementsByMaterial);
 
 // ── Usage Logs (project-scoped) ──────────────────────────────────────
-router.post("/usage-logs", validateRequest({ body: logUsageSchema }), authorizeProjectAccess("STORE_KEEPER"), logUsage);
-router.get("/usage-logs", authorizeProjectAccess("STORE_KEEPER"), getUsageByProject);
-router.get("/usage-logs/by-task", validateRequest({ query: getUsageByTaskQuerySchema }), authorizeProjectAccess("STORE_KEEPER"), getUsageByTask);
+projectRouter.get("/usage-summary", authorizeProjectAccess("SITE_ENGINEER"), getMaterialUsageSummary);
+projectRouter.post("/usage-logs", validateRequest({ body: logUsageSchema }), authorizeProjectAccess("STORE_KEEPER"), logUsage);
+projectRouter.get("/usage-logs", authorizeProjectAccess("STORE_KEEPER"), getUsageByProject);
+projectRouter.get("/usage-logs/by-task", validateRequest({ query: getUsageByTaskQuerySchema }), authorizeProjectAccess("STORE_KEEPER"), getUsageByTask);
 
 // Voiding usage targets a specific usage log, so it loads the log (which loads the project implicitly if needed, but project already loaded in server loop)
-router.patch("/usage-logs/:usageLogId/void", validateRequest({ params: usageLogIdParamSchema }), loadUsageLog, authorizeProjectAccess("STORE_KEEPER"), voidUsage);
+projectRouter.patch("/usage-logs/:usageLogId/void", validateRequest({ params: usageLogIdParamSchema }), loadUsageLog, authorizeProjectAccess("STORE_KEEPER"), voidUsage);
 
-export default router;
+export { catalogRouter, projectRouter };

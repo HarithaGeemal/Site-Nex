@@ -6,6 +6,7 @@ import Task from "../models/task.js";
 import Issue from "../models/issue.js";
 import User from "../models/users.js";
 import TaskAssignment from "../models/taskAssignment.js";
+import DeletionLog from "../models/deletionLog.js";
 
 const MEMBER_ROLES = ["PROJECT_MANAGER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER"];
 
@@ -144,7 +145,8 @@ export const updateProject = async (req, res) => {
 // @access  Admin
 export const deleteProject = async (req, res) => {
     try {
-        await ProjectService.deleteProject(req.project._id, req.user._id);
+        const { reason } = req.body;
+        await ProjectService.deleteProject(req.project._id, req.user._id, reason);
 
         return res.status(200).json({ success: true, message: "Project deleted successfully" });
     } catch (error) {
@@ -209,31 +211,42 @@ export const addMember = async (req, res) => {
     }
 };
 
-// @desc    Remove a member from a project
+// @desc    Hard-remove a member from a project with logs
 // @route   DELETE /api/projects/:id/members/:userId
 // @access  Admin / Project Manager
 export const removeMember = async (req, res) => {
     try {
-        const membership = await ProjectMembership.findOneAndUpdate(
-            { projectId: req.project._id, userId: req.params.userId, removedAt: null },
-            { removedAt: new Date() },
-            { new: true }
-        );
+        const { reason } = req.body;
+        const deletedByUserId = req.user._id;
+
+        const membership = await ProjectMembership.findOne({ projectId: req.project._id, userId: req.params.userId });
 
         if (!membership) {
             return res.status(404).json({ success: false, message: "User is not a member of this project" });
         }
 
-        // CLEANUP: 1. Soft-remove all active task assignments for this user in this project
+        // CLEANUP: 1. Hard-remove all active task assignments for this user in this project
         const projectTasks = await Task.find({ projectId: req.project._id }).select("_id");
         const taskIds = projectTasks.map(t => t._id);
 
+        let assignments = [];
         if (taskIds.length > 0) {
-            await TaskAssignment.updateMany(
-                { taskId: { $in: taskIds }, userId: req.params.userId, removedAt: null },
-                { removedAt: new Date(), removedReason: "User removed from project" }
-            );
+            assignments = await TaskAssignment.find({ taskId: { $in: taskIds }, userId: req.params.userId });
         }
+
+        const logs = [];
+        logs.push({ entityType: "ProjectMembership", entityId: membership._id, deletedBy: deletedByUserId, reason: reason || "User removed from project" });
+        assignments.forEach(a => logs.push({ entityType: "TaskAssignment", entityId: a._id, deletedBy: deletedByUserId, reason: reason || "User removed from project" }));
+
+        if (logs.length > 0) {
+            await DeletionLog.insertMany(logs);
+        }
+
+        if (taskIds.length > 0) {
+            await TaskAssignment.deleteMany({ taskId: { $in: taskIds }, userId: req.params.userId });
+        }
+
+        await membership.deleteOne();
 
         // CLEANUP: 2. Unassign the user from any open issues in this project
         await Issue.updateMany(

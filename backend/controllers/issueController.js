@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Issue from "../models/issue.js";
 import Task from "../models/task.js";
 import User from "../models/users.js";
+import ProjectMembership from "../models/projectMembership.js";
 import EventService from "../services/eventService.js";
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -16,11 +17,11 @@ const STATUS_FLOW = {
 };
 
 // @desc    Create a new issue
-// @route   POST /api/issues
+// @route   POST /api/projects/:projectId/issues
 // @access  Private
 export const createIssue = async (req, res) => {
     try {
-        const { title, type, taskId, description, priority, dueDate } = req.body;
+        const { title, type, taskId, description, priority, dueDate, reportedLocation, severity } = req.body;
         const projectId = req.project._id;
 
         // Optionally verify task exists if provided
@@ -45,6 +46,8 @@ export const createIssue = async (req, res) => {
             description,
             priority,
             dueDate,
+            reportedLocation,
+            severity,
             createdBy: req.user._id,
         });
 
@@ -55,7 +58,7 @@ export const createIssue = async (req, res) => {
 };
 
 // @desc    Get all issues for a project (optional filters: status, priority)
-// @route   GET /api/issues?projectId=xxx&status=Open&priority=High
+// @route   GET /api/projects/:projectId/issues?status=Open&priority=High
 // @access  Private
 export const getIssuesByProject = async (req, res) => {
     try {
@@ -79,7 +82,7 @@ export const getIssuesByProject = async (req, res) => {
 };
 
 // @desc    Get a single issue by ID
-// @route   GET /api/issues/:id
+// @route   GET /api/projects/:projectId/issues/:id
 // @access  Private
 export const getIssueById = async (req, res) => {
     try {
@@ -97,11 +100,11 @@ export const getIssueById = async (req, res) => {
 };
 
 // @desc    Update issue title, description, priority or dueDate
-// @route   PUT /api/issues/:id
+// @route   PUT /api/projects/:projectId/issues/:id
 // @access  Private
 export const updateIssue = async (req, res) => {
     try {
-        const { title, type, description, priority, dueDate } = req.body;
+        const { title, type, description, priority, dueDate, reportedLocation, severity } = req.body;
 
         // Only update defined fields; do NOT allow direct status change here (use dedicated endpoints)
         if (title !== undefined) req.issue.title = title;
@@ -109,6 +112,8 @@ export const updateIssue = async (req, res) => {
         if (description !== undefined) req.issue.description = description;
         if (priority !== undefined) req.issue.priority = priority;
         if (dueDate !== undefined) req.issue.dueDate = dueDate;
+        if (reportedLocation !== undefined) req.issue.reportedLocation = reportedLocation;
+        if (severity !== undefined) req.issue.severity = severity;
 
         await req.issue.save();
 
@@ -119,7 +124,7 @@ export const updateIssue = async (req, res) => {
 };
 
 // @desc    Assign an issue to a user
-// @route   PATCH /api/issues/:id/assign
+// @route   PATCH /api/projects/:projectId/issues/:id/assign
 // @access  Admin / Project Manager
 export const assignIssue = async (req, res) => {
     try {
@@ -132,8 +137,15 @@ export const assignIssue = async (req, res) => {
         const assignee = await User.findOne({ _id: assignedTo, isActive: true });
         if (!assignee) return res.status(404).json({ success: false, message: "Assignee user not found or is inactive" });
 
-        // Ensure assignee is project member handled implicitly, assuming users select from the project worker pool
-        // but let's leave that if-logic out for now, or just let it pass as projectMembership verifies the requester.
+        const membership = await ProjectMembership.findOne({
+            projectId: req.project._id,
+            userId: assignedTo,
+            removedAt: null
+        });
+
+        if (!membership) {
+            return res.status(403).json({ success: false, message: "User is not a member of this project" });
+        }
 
         // Validate status transition
         const allowed = STATUS_FLOW[req.issue.status] || [];
@@ -152,7 +164,7 @@ export const assignIssue = async (req, res) => {
 };
 
 // @desc    Mark an issue as resolved
-// @route   PATCH /api/issues/:id/resolve
+// @route   PATCH /api/projects/:projectId/issues/:id/resolve
 // @access  Private
 export const resolveIssue = async (req, res) => {
     try {
@@ -185,7 +197,7 @@ export const resolveIssue = async (req, res) => {
 };
 
 // @desc    Close an issue (after verifying resolution)
-// @route   PATCH /api/issues/:id/close
+// @route   PATCH /api/projects/:projectId/issues/:id/close
 // @access  Admin / Project Manager
 export const closeIssue = async (req, res) => {
     try {

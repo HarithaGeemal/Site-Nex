@@ -38,6 +38,13 @@ const issueSchema = new mongoose.Schema(
 
         dueDate: { type: Date },
 
+        // Site Engineer Additions
+        reportedLocation: { type: String, trim: true },
+        severity: {
+            type: String,
+            enum: ["Low", "Medium", "High", "Critical"],
+        },
+
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",

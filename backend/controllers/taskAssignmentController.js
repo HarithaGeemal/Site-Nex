@@ -3,6 +3,8 @@ import TaskAssignment from "../models/taskAssignment.js";
 import Task from "../models/task.js";
 import User from "../models/users.js";
 import EventService from "../services/eventService.js";
+import ProjectMembership from "../models/projectMembership.js";
+import DeletionLog from "../models/deletionLog.js";
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -33,6 +35,19 @@ export const assignUser = async (req, res) => {
         // Require task to belong to the requested project
         if (task.projectId.toString() !== req.project._id.toString()) {
             return res.status(400).json({ success: false, message: "Task does not belong to the requested project" });
+        }
+
+        const membership = await ProjectMembership.findOne({
+            projectId: req.project._id,
+            userId,
+            removedAt: null
+        });
+
+        if (!membership) {
+            return res.status(403).json({
+                success: false,
+                message: "User is not a member of this project"
+            });
         }
 
         // Prevent duplicate active assignments
@@ -67,6 +82,14 @@ export const getAssignmentsByTask = async (req, res) => {
 
         if (!isValidId(taskId)) {
             return res.status(400).json({ success: false, message: "Invalid taskId" });
+        }
+
+        const task = await Task.findOne({ _id: taskId, isCancled: false });
+        if (!task) {
+            return res.status(404).json({ success: false, message: "Task not found" });
+        }
+        if (task.projectId.toString() !== req.project._id.toString()) {
+            return res.status(403).json({ success: false, message: "Task belongs to another project" });
         }
 
         const assignments = await TaskAssignment.find({ taskId, removedAt: null })
@@ -115,20 +138,28 @@ export const updateHours = async (req, res) => {
     }
 };
 
-// @desc    Soft-remove a user from a task
+// @desc    Hard-remove a user from a task with logs
 // @route   PATCH /api/task-assignments/:id/remove
 // @access  Admin / Project Manager
 export const removeAssignment = async (req, res) => {
     try {
-        const { removedReason } = req.body;
+        const { reason, removedReason } = req.body;
+        const finalReason = reason || removedReason || "Removed explicitly";
+        const deletedByUserId = req.user._id;
 
-        req.assignment.removedAt = new Date();
-        req.assignment.removedReason = removedReason || "Removed explicitly";
-        await req.assignment.save();
+        const log = new DeletionLog({
+            entityType: "TaskAssignment",
+            entityId: req.assignment._id,
+            deletedBy: deletedByUserId,
+            reason: finalReason
+        });
+        await log.save();
 
-        EventService.emit("project:syncProgress", req.assignment.taskId.projectId || req.project._id);
+        await req.assignment.deleteOne();
 
-        return res.status(200).json({ success: true, message: "User removed from task successfully", assignment: req.assignment });
+        EventService.emit("project:syncProgress", req.project._id);
+
+        return res.status(200).json({ success: true, message: "User removed from task successfully" });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }

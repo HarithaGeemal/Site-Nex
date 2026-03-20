@@ -1,4 +1,5 @@
 import Task from "../models/task.js";
+import Issue from "../models/issue.js";
 import mongoose from "mongoose";
 
 class TaskService {
@@ -114,6 +115,111 @@ class TaskService {
                 throw new Error(`Circular dependency detected in project graph. Operation aborted to prevent a cycle.`);
             }
         }
+    }
+
+    /**
+     * Request task completion by a Site Engineer
+     */
+    static async requestCompletion(taskId, userId, note) {
+        const task = await Task.findById(taskId);
+        if (!task || task.isCancled) throw new Error("Task not found or cancelled");
+        if (task.status === "Completed") throw new Error("Task is already completed");
+        if (task.completionRequested) throw new Error("Task completion has already been requested");
+
+        task.completionRequested = true;
+        task.completionRequestedBy = userId;
+        task.completionRequestedAt = new Date();
+
+        if (note) {
+            task.progressNotes.push({ note: `Completion requested: ${note}`, createdBy: userId });
+        }
+        await task.save();
+        return task;
+    }
+
+    /**
+     * Approve task completion by a Project Manager
+     */
+    static async approveCompletion(taskId, userId, note) {
+        const task = await Task.findById(taskId);
+        if (!task || task.isCancled) throw new Error("Task not found or cancelled");
+        if (task.status === "Completed") throw new Error("Task is already completed");
+        if (!task.completionRequested) throw new Error("Task completion was not requested");
+
+        // Check for open issues
+        const openIssuesCount = await Issue.countDocuments({
+            taskId: task._id,
+            status: { $nin: ["Resolved", "Closed"] }
+        });
+
+        if (openIssuesCount > 0) {
+            throw new Error(`Cannot approve completion. There are ${openIssuesCount} open issues blocking this task. Resolve them first.`);
+        }
+
+        // Clear requested state
+        task.completionRequested = false;
+        task.completionRequestedBy = null;
+        task.completionRequestedAt = null;
+
+        task.completionApprovedBy = userId;
+        task.completionApprovedAt = new Date();
+        task.status = "Completed";
+        task.percentComplete = 100;
+
+        if (note) {
+            task.progressNotes.push({ note: `Completion approved: ${note}`, createdBy: userId });
+        }
+        await task.save();
+        
+        // Return task to trigger any cascade updates in controller
+        return task;
+    }
+
+    /**
+     * Get tasks that are blocked by open issues or incomplete dependencies
+     */
+    static async getBlockedTasks(projectId) {
+        const activeTasks = await Task.find({ projectId, isCancled: false })
+            .populate("dependencyTaskIds", "status percentComplete");
+
+        const uncompletedTasksWithIssues = await Issue.aggregate([
+            { $match: { projectId: new mongoose.Types.ObjectId(projectId), status: { $nin: ["Resolved", "Closed"] }, taskId: { $ne: null } } },
+            { $group: { _id: "$taskId", issueCount: { $sum: 1 } } }
+        ]);
+
+        const issuesMap = new Map();
+        uncompletedTasksWithIssues.forEach(item => issuesMap.set(item._id.toString(), item.issueCount));
+
+        const blockedTasks = [];
+        for (const task of activeTasks) {
+            if (task.status === "Completed") continue;
+
+            const relatedIssueCount = issuesMap.get(task._id.toString()) || 0;
+            const incompleteDependencies = (task.dependencyTaskIds || []).filter(dep => dep.status !== "Completed" && dep.percentComplete !== 100);
+            const incompleteDependencyCount = incompleteDependencies.length;
+
+            if (relatedIssueCount > 0 || incompleteDependencyCount > 0) {
+                let blockReason = "";
+                if (relatedIssueCount > 0 && incompleteDependencyCount > 0) {
+                    blockReason = "Blocked by issues and dependencies";
+                } else if (relatedIssueCount > 0) {
+                    blockReason = "Blocked by open issues";
+                } else {
+                    blockReason = "Blocked by incomplete dependencies";
+                }
+
+                blockedTasks.push({
+                    _id: task._id,
+                    name: task.name,
+                    status: task.status,
+                    percentComplete: task.percentComplete,
+                    blockReason,
+                    relatedIssueCount,
+                    incompleteDependencyCount
+                });
+            }
+        }
+        return blockedTasks;
     }
 }
 

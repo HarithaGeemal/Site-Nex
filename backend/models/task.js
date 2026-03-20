@@ -41,7 +41,14 @@ const taskSchema = new mongoose.Schema(
                 createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
                 createdAt: { type: Date, default: Date.now },
             }
-        ]
+        ],
+
+        // Task Completion Approval Workflow
+        completionRequested: { type: Boolean, default: false },
+        completionRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+        completionRequestedAt: { type: Date, default: null },
+        completionApprovedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+        completionApprovedAt: { type: Date, default: null },
 
     },
     { timestamps: true }

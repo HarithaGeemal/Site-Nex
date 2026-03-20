@@ -8,8 +8,9 @@ import userRoutes from './routes/userRoutes.js';
 import projectRoutes from './routes/projectRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
 import taskAssignmentRoutes from './routes/taskAssignmentRoutes.js';
-import materialRoutes from './routes/materialRoutes.js';
+import { catalogRouter as materialCatalogRoutes, projectRouter as materialProjectRoutes } from './routes/materialRoutes.js';
 import issueRoutes from './routes/issueRoutes.js';
+import siteProgressReportRoutes from './routes/siteProgressReportRoutes.js';
 import protect from './middlewares/authMiddleware.js';
 import { validateRequest } from './middlewares/validateRequest.js';
 import { loadProject } from './middlewares/rbacMiddleware.js';
@@ -46,11 +47,12 @@ const projectScopedMiddlewares = [
 
 app.use('/api/projects/:projectId/tasks', projectScopedMiddlewares, express.json(), taskRoutes);
 app.use('/api/projects/:projectId/issues', projectScopedMiddlewares, express.json(), issueRoutes);
-app.use('/api/projects/:projectId/materials', projectScopedMiddlewares, express.json(), materialRoutes);
+app.use('/api/projects/:projectId/materials', projectScopedMiddlewares, express.json(), materialProjectRoutes);
 app.use('/api/projects/:projectId/task-assignments', projectScopedMiddlewares, express.json(), taskAssignmentRoutes);
+app.use('/api/projects/:projectId/site-progress-reports', projectScopedMiddlewares, express.json(), siteProgressReportRoutes);
 
 // Legacy flat route for global material catalog endpoints (/api/materials/items)
-app.use('/api/materials', express.json(), materialRoutes);
+app.use('/api/materials', express.json(), materialCatalogRoutes);
 
 app.use((req, res) => {
     res.status(404).json({

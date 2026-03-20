@@ -111,6 +111,23 @@ export const addProgressNoteSchema = z.object({
     note: z.string().min(1, "Note content cannot be empty"),
 });
 
+export const requestTaskCompletionSchema = z.object({
+    note: z.string().optional(),
+});
+
+export const approveTaskCompletionSchema = z.object({
+    note: z.string().optional(),
+});
+
+export const createSiteProgressReportSchema = z.object({
+    reportDate: z.string(),
+    summary: z.string().min(1),
+    workCompleted: z.string().min(1),
+    plannedNextSteps: z.string().optional(),
+    delaysOrRisks: z.string().optional(),
+    weatherNotes: z.string().optional()
+});
+
 // ----------------------------------------
 // Task Assignments
 // ----------------------------------------
@@ -129,6 +146,7 @@ export const updateAssignmentHoursSchema = z.object({
 
 export const removeAssignmentSchema = z.object({
     removedReason: z.string().optional(),
+    reason: z.string().optional(),
 });
 
 export const getAssignmentsQuerySchema = z.object({
@@ -145,6 +163,8 @@ export const createIssueSchema = z.object({
     type: z.enum(["Defect", "Safety", "Material Shortage", "Design Request", "Other"]),
     priority: z.enum(["Low", "Medium", "High", "Critical"]),
     dueDate: z.string().optional(),
+    reportedLocation: z.string().optional(),
+    severity: z.enum(["Low", "Medium", "High", "Critical"]).optional(),
 });
 
 export const updateIssueSchema = createIssueSchema.partial();

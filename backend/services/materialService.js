@@ -173,6 +173,42 @@ class MaterialService {
             throw error;
         }
     }
+
+    /**
+     * Get project-level material usage summary
+     */
+    static async getMaterialUsageSummary(projectId) {
+        return await MaterialUsageLog.aggregate([
+            { $match: { projectId: new mongoose.Types.ObjectId(projectId), isVoided: false } },
+            {
+                $group: {
+                    _id: "$materialItemId",
+                    totalQuantityUsed: { $sum: "$quantityUsed" },
+                    usageCount: { $sum: 1 }
+                }
+            },
+            {
+                $lookup: {
+                    from: "material_items", // fixed collection name
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "materialInfo"
+                }
+            },
+            { $unwind: "$materialInfo" },
+            {
+                $project: {
+                    materialId: "$_id",
+                    materialName: "$materialInfo.name",
+                    totalQuantityUsed: 1,
+                    unit: "$materialInfo.unit",
+                    usageCount: 1,
+                    _id: 0
+                }
+            },
+            { $sort: { materialName: 1 } }
+        ]);
+    }
 }
 
 export default MaterialService;

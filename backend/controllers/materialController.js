@@ -98,7 +98,7 @@ export const archiveMaterialItem = async (req, res) => {
 // ─── Stock Movements ──────────────────────────────────────────────────────────
 
 // @desc    Record a stock movement (STOCK_IN / ADJUSTMENT / VOID_REVERT)
-// @route   POST /api/materials/stock-movements
+// @route   POST /api/projects/:projectId/materials/stock-movements
 // @access  Store Keeper
 export const addStockMovement = async (req, res) => {
     try {
@@ -126,7 +126,7 @@ export const addStockMovement = async (req, res) => {
 };
 
 // @desc    Get all stock movements for a project
-// @route   GET /api/materials/stock-movements?projectId=xxx
+// @route   GET /api/projects/:projectId/materials/stock-movements
 // @access  Private
 export const getMovementsByProject = async (req, res) => {
     try {
@@ -144,7 +144,7 @@ export const getMovementsByProject = async (req, res) => {
 };
 
 // @desc    Get stock movements for a specific material in a project
-// @route   GET /api/materials/stock-movements/by-material?projectId=xxx&materialItemId=yyy
+// @route   GET /api/projects/:projectId/materials/stock-movements/by-material?materialItemId=yyy
 // @access  Private
 export const getMovementsByMaterial = async (req, res) => {
     try {
@@ -173,7 +173,7 @@ export const getMovementsByMaterial = async (req, res) => {
 // ─── Usage Logs ───────────────────────────────────────────────────────────────
 
 // @desc    Log material usage against a task (atomic — prevents negative stock race condition)
-// @route   POST /api/materials/usage-logs
+// @route   POST /api/projects/:projectId/materials/usage-logs
 // @access  Site Engineer / Store Keeper
 export const logUsage = async (req, res) => {
     try {
@@ -203,7 +203,7 @@ export const logUsage = async (req, res) => {
 };
 
 // @desc    Get all non-voided usage logs for a project
-// @route   GET /api/materials/usage-logs?projectId=xxx
+// @route   GET /api/projects/:projectId/materials/usage-logs
 // @access  Private
 export const getUsageByProject = async (req, res) => {
     try {
@@ -222,7 +222,7 @@ export const getUsageByProject = async (req, res) => {
 };
 
 // @desc    Get usage logs for a specific task
-// @route   GET /api/materials/usage-logs/by-task?projectId=xxx&taskId=yyy
+// @route   GET /api/projects/:projectId/materials/usage-logs/by-task?taskId=yyy
 // @access  Private
 export const getUsageByTask = async (req, res) => {
     try {
@@ -262,6 +262,18 @@ export const voidUsage = async (req, res) => {
         const log = await MaterialService.voidUsage(req.params.usageLogId, voidReason, req.user._id);
 
         return res.status(200).json({ success: true, message: "Usage log voided and stock restored successfully", log });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Get project-level material usage summary
+// @route   GET /api/projects/:projectId/materials/usage-summary
+// @access  Site Engineer or above
+export const getMaterialUsageSummary = async (req, res) => {
+    try {
+        const summary = await MaterialService.getMaterialUsageSummary(req.project._id);
+        return res.status(200).json({ success: true, summary });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }

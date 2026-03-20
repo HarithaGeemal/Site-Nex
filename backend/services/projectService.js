@@ -5,6 +5,7 @@ import Issue from "../models/issue.js";
 import MaterialUsageLog from "../models/materialUsageLog.js";
 import ProjectMembership from "../models/projectMembership.js";
 import MaterialService from "./materialService.js";
+import DeletionLog from "../models/deletionLog.js";
 
 /**
  * Service to handle complex Project operations separated from the controller layer.
@@ -71,44 +72,38 @@ class ProjectService {
      * @param {string} projectId 
      * @param {string} deletedByUserId 
      */
-    static async deleteProject(projectId, deletedByUserId) {
-        // 1. Soft-delete the project itself
-        const project = await Project.findOneAndUpdate(
-            { _id: projectId, isDeleted: false },
-            { isDeleted: true },
-            { new: true }
-        );
-
+    static async deleteProject(projectId, deletedByUserId, deletionReason) {
+        // Find existing to log
+        const project = await Project.findById(projectId);
         if (!project) {
-            throw new Error("Project not found or already deleted");
+            throw new Error("Project not found");
         }
 
-        // 2. Cascade Cancel all tasks in the project
-        await Task.updateMany(
-            { projectId, isCancled: false },
-            { isCancled: true, status: "Cancelled", cancellationReason: "Parent project deleted" }
-        );
-
-        // Fetch all task IDs to cascade to assignments and issues
-        const tasks = await Task.find({ projectId }).select("_id");
+        const tasks = await Task.find({ projectId });
         const taskIds = tasks.map(t => t._id);
 
-        // 3. Cascade removed assignments
-        if (taskIds.length > 0) {
-            await TaskAssignment.updateMany(
-                { taskId: { $in: taskIds }, removedAt: null },
-                { removedAt: new Date(), removedReason: "Parent project deleted" }
-            );
+        const assignments = await TaskAssignment.find({ taskId: { $in: taskIds } });
+        const memberships = await ProjectMembership.find({ projectId });
+
+        const logs = [];
+        logs.push({ entityType: "Project", entityId: projectId, entityName: project.name, deletedBy: deletedByUserId, reason: deletionReason || "Not specified" });
+        
+        tasks.forEach(t => logs.push({ entityType: "Task", entityId: t._id, entityName: t.name, deletedBy: deletedByUserId, reason: "Parent project deleted" }));
+        assignments.forEach(a => logs.push({ entityType: "TaskAssignment", entityId: a._id, deletedBy: deletedByUserId, reason: "Parent project deleted" }));
+        memberships.forEach(m => logs.push({ entityType: "ProjectMembership", entityId: m._id, deletedBy: deletedByUserId, reason: "Parent project deleted" }));
+
+        if (logs.length > 0) {
+            await DeletionLog.insertMany(logs);
         }
 
-        // 4. Cascade Close all open issues
-        await Issue.updateMany(
-            { projectId, status: { $nin: ["Resolved", "Closed"] } },
-            { status: "Closed", closedAt: new Date(), resolutionNote: "Automatically closed due to project deletion." }
-        );
-
-        // 5. Cascade void material usage logs
-        await MaterialService.voidLogsForProject(projectId, deletedByUserId, "Parent project deleted");
+        if (taskIds.length > 0) {
+            await TaskAssignment.deleteMany({ taskId: { $in: taskIds } });
+        }
+        await Task.deleteMany({ projectId });
+        await Issue.deleteMany({ projectId });
+        await ProjectMembership.deleteMany({ projectId });
+        await MaterialUsageLog.deleteMany({ projectId });
+        await Project.deleteOne({ _id: projectId });
 
         return project;
     }

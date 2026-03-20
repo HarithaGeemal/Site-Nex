@@ -91,7 +91,10 @@ export const loadAssignment = async (req, res, next) => {
 
         req.assignment = assignment;
         // We need to fetch the task to get the projectId, since assignments only have taskId
-        const task = await Task.findById(assignment.taskId);
+        const task = await Task.findOne({ _id: assignment.taskId, isCancled: false });
+        if (!task) {
+            return res.status(404).json({ success: false, message: "Associated task not found" });
+        }
         if (task && !req.project) {
             req.params.projectId = task.projectId.toString();
         }
@@ -110,7 +113,7 @@ export const loadUsageLog = async (req, res, next) => {
         if (!usageLogId) return res.status(400).json({ success: false, message: "Missing usageLogId" });
         if (!isValidId(usageLogId)) return res.status(400).json({ success: false, message: "Invalid usageLogId" });
 
-        const log = await MaterialUsageLog.findById(usageLogId);
+        const log = await MaterialUsageLog.findOne({ _id: usageLogId, isVoided: false });
         if (!log) return res.status(404).json({ success: false, message: "Usage log not found" });
 
         req.usageLog = log;

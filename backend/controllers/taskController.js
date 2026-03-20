@@ -5,22 +5,37 @@ import TaskAssignment from "../models/taskAssignment.js";
 import Issue from "../models/issue.js";
 import TaskService from "../services/taskService.js";
 import EventService from "../services/eventService.js";
+import DeletionLog from "../models/deletionLog.js";
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 // @desc    Create a new task under a project
-// @route   POST /api/tasks
+// @route   POST /api/projects/:projectId/tasks
 // @access  Admin / Project Manager
 export const createTask = async (req, res) => {
     try {
         const { name, description, status, priority, startDate, endDate, percentComplete, dependencyTaskIds, estimatedHours, actualHours } = req.body;
         const projectId = req.project._id;
 
+        if (new Date(startDate) >= new Date(endDate)) {
+            return res.status(400).json({
+                success: false,
+                message: "startDate must be before endDate"
+            });
+        }
         // Validate task dates fit within project dates
         if (new Date(startDate) < new Date(req.project.startDate) || new Date(endDate) > new Date(req.project.endDate)) {
             return res.status(400).json({
                 success: false,
                 message: `Task dates must be within the project range (${req.project.startDate.toISOString().split("T")[0]} → ${req.project.endDate.toISOString().split("T")[0]})`,
+            });
+        }
+
+        // Prevent direct creation as completed
+        if (status === "Completed" || percentComplete === 100) {
+            return res.status(422).json({
+                success: false,
+                message: "Cannot create a task directly as Completed. Please create it first and follow the completion workflow."
             });
         }
 
@@ -51,7 +66,7 @@ export const createTask = async (req, res) => {
 };
 
 // @desc    Get all active tasks for a project
-// @route   GET /api/tasks?projectId=xxx
+// @route   GET /api/projects/:projectId/tasks
 // @access  Private
 export const getTasksByProject = async (req, res) => {
     try {
@@ -68,7 +83,7 @@ export const getTasksByProject = async (req, res) => {
 };
 
 // @desc    Get a single task by ID
-// @route   GET /api/tasks/:id
+// @route   GET /api/projects/:projectId/tasks/:id
 // @access  Private
 export const getTaskById = async (req, res) => {
     try {
@@ -84,7 +99,7 @@ export const getTaskById = async (req, res) => {
 };
 
 // @desc    Update a task
-// @route   PUT /api/tasks/:id
+// @route   PUT /api/projects/:projectId/tasks/:id
 // @access  Admin / Project Manager / Site Engineer
 export const updateTask = async (req, res) => {
     try {
@@ -106,6 +121,16 @@ export const updateTask = async (req, res) => {
         // Delegate to TaskService for DFS Graph Cycle validation
         if (dependencyTaskIds && dependencyTaskIds.length > 0) {
             await TaskService.validateDependencies(req.project._id, req.task._id, dependencyTaskIds);
+        }
+
+        // Prevent direct completion bypass
+        const isCurrentlyCompleted = req.task.status === "Completed" || req.task.percentComplete === 100;
+        const intendsToComplete = status === "Completed" || percentComplete === 100;
+        if (!isCurrentlyCompleted && intendsToComplete && !req.task.completionApprovedAt) {
+            return res.status(422).json({
+                success: false,
+                message: "Direct completion is not allowed. Please use the request and approve completion workflow.",
+            });
         }
 
         // Only update defined fields
@@ -152,38 +177,42 @@ export const updateTask = async (req, res) => {
     }
 };
 
-// @desc    Soft-cancel a task
-// @route   PATCH /api/tasks/:id/cancel
+// @desc    Hard-delete a task
+// @route   PATCH /api/projects/:projectId/tasks/:id/cancel
 // @access  Admin / Project Manager
 export const cancelTask = async (req, res) => {
     try {
-        req.task.isCancled = true;
-        req.task.status = "Cancelled";
-        await req.task.save();
+        const { reason } = req.body;
+        const deletedByUserId = req.user._id;
 
-        // Cascade: soft-remove all active assignments
-        await TaskAssignment.updateMany(
-            { taskId: req.task._id, removedAt: null },
-            { removedAt: new Date(), removedReason: "Task cancelled" }
-        );
+        // Fetch assignments to log
+        const assignments = await TaskAssignment.find({ taskId: req.task._id });
+        
+        const logs = [];
+        logs.push({ entityType: "Task", entityId: req.task._id, entityName: req.task.name, deletedBy: deletedByUserId, reason: reason || "Not specified" });
+        
+        assignments.forEach(a => logs.push({ entityType: "TaskAssignment", entityId: a._id, deletedBy: deletedByUserId, reason: "Parent task deleted" }));
 
-        // Cascade: close any open issues linked to this task
-        await Issue.updateMany(
-            { taskId: req.task._id, status: { $nin: ["Resolved", "Closed"] } },
-            { status: "Closed", closedAt: new Date() }
-        );
+        if (logs.length > 0) {
+            await DeletionLog.insertMany(logs);
+        }
+
+        // Hard deletes
+        await TaskAssignment.deleteMany({ taskId: req.task._id });
+        await Issue.deleteMany({ taskId: req.task._id });
+        await req.task.deleteOne();
 
         // Sync project progress asynchronously
         EventService.emit("project:syncProgress", req.task.projectId);
 
-        return res.status(200).json({ success: true, message: "Task cancelled successfully", task: req.task });
+        return res.status(200).json({ success: true, message: "Task deleted successfully" });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }
 };
 
 // @desc    Add a progress note to a task
-// @route   POST /api/tasks/:id/notes
+// @route   POST /api/projects/:projectId/tasks/:id/notes
 // @access  Project Team
 export const addProgressNote = async (req, res) => {
     try {
@@ -198,12 +227,55 @@ export const addProgressNote = async (req, res) => {
 };
 
 // @desc    Get all progress notes for a task (descending by date)
-// @route   GET /api/tasks/:id/notes
+// @route   GET /api/projects/:projectId/tasks/:id/notes
 // @access  Project Member
 export const getTaskNotes = async (req, res) => {
     try {
         const notes = await TaskService.getTaskNotes(req.task._id);
         return res.status(200).json({ success: true, notes });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Request task completion (Site Engineer)
+// @route   PATCH /api/projects/:projectId/tasks/:taskId/request-completion
+// @access  Site Engineer or above
+export const requestCompletion = async (req, res) => {
+    try {
+        const { note } = req.body;
+        const task = await TaskService.requestCompletion(req.task._id, req.user._id, note);
+        return res.status(200).json({ success: true, message: "Task completion requested", task });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Approve task completion (Project Manager)
+// @route   PATCH /api/projects/:projectId/tasks/:taskId/approve-completion
+// @access  Project Manager or above
+export const approveCompletion = async (req, res) => {
+    try {
+        const { note } = req.body;
+        const task = await TaskService.approveCompletion(req.task._id, req.user._id, note);
+
+        // Complete cascade (auto reschedule & event sync)
+        await TaskService.autoRescheduleDependentTasks(task._id);
+        EventService.emit("project:syncProgress", task.projectId);
+
+        return res.status(200).json({ success: true, message: "Task completion approved", task });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Get blocked tasks for a project
+// @route   GET /api/projects/:projectId/tasks/blocked
+// @access  Site Engineer
+export const getBlockedTasks = async (req, res) => {
+    try {
+        const tasks = await TaskService.getBlockedTasks(req.project._id);
+        return res.status(200).json({ success: true, tasks });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }
