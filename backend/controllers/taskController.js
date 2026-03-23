@@ -6,6 +6,8 @@ import Issue from "../models/issue.js";
 import TaskService from "../services/taskService.js";
 import EventService from "../services/eventService.js";
 import DeletionLog from "../models/deletionLog.js";
+import SafetyNotice from "../models/safetyNotice.js";
+import PermitToWork from "../models/permitToWork.js";
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -131,6 +133,24 @@ export const updateTask = async (req, res) => {
                 success: false,
                 message: "Direct completion is not allowed. Please use the request and approve completion workflow.",
             });
+        }
+
+        // Prevent starting task if blocked by Safety
+        if (status === "In Progress" && req.task.status !== "In Progress") {
+            const activeNotice = await SafetyNotice.findOne({ taskId: req.task._id, status: "Active" });
+            if (activeNotice) {
+                return res.status(422).json({
+                    success: false,
+                    message: "Cannot start task. It is blocked by an active Stop/Hold Notice."
+                });
+            }
+            const pendingPTW = await PermitToWork.findOne({ taskId: req.task._id, status: { $in: ["Pending", "Denied", "Revoked"] } });
+            if (pendingPTW) {
+                return res.status(422).json({
+                    success: false,
+                    message: `Cannot start task. A Permit to Work (${pendingPTW.permitType}) is currently ${pendingPTW.status}.`
+                });
+            }
         }
 
         // Only update defined fields

@@ -16,7 +16,7 @@ const projectMembershipSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ["OWNER", "PROJECT_MANAGER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER"],
+            enum: ["OWNER", "PROJECT_MANAGER", "SAFETY_OFFICER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER"],
             required: true,
         },
         isPrimary: {

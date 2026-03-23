@@ -133,6 +133,7 @@ export const loadUsageLog = async (req, res, next) => {
 const ROLE_HIERARCHY = {
     OWNER: 50,
     PROJECT_MANAGER: 40,
+    SAFETY_OFFICER: 35,
     SITE_ENGINEER: 30,
     STORE_KEEPER: 20,
     ASSISTANT_ENGINEER: 10

@@ -1,7 +1,6 @@
 import { z } from "zod";
 import mongoose from "mongoose";
 
-// Custom Zod validation for MongoDB ObjectId
 const objectId = z.string().refine((val) => mongoose.Types.ObjectId.isValid(val), {
     message: "Invalid ObjectId format",
 });
@@ -85,7 +84,7 @@ export const updateProjectSchema = createProjectSchema.partial();
 
 export const addProjectMemberSchema = z.object({
     userId: objectId,
-    role: z.enum(["PROJECT_MANAGER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER"]),
+    role: z.enum(["PROJECT_MANAGER", "SAFETY_OFFICER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER"]),
     isPrimary: z.boolean().optional(),
 });
 
@@ -215,4 +214,117 @@ export const getMovementsByMaterialQuerySchema = z.object({
 
 export const getUsageByTaskQuerySchema = z.object({
     taskId: objectId,
+});
+
+// ----------------------------------------
+// Safety Incidents
+// ----------------------------------------
+export const createSafetyIncidentSchema = z.object({
+    incidentDate: z.string(),
+    incidentType: z.enum(["Near Miss", "Injury", "Equipment Accident", "Fire Hazard", "Unsafe Act", "Other"]),
+    location: z.string().min(1),
+    description: z.string().min(1),
+    severity: z.enum(["Low", "Medium", "High", "Critical"]),
+    injuryReported: z.boolean().optional(),
+    affectedPersons: z.number().min(0).optional(),
+    immediateActionTaken: z.string().optional(),
+    followUpAction: z.string().optional(),
+    status: z.enum(["Open", "Under Investigation", "Resolved", "Closed"]).optional(),
+    requiresImmediateAttention: z.boolean().optional()
+});
+
+export const updateSafetyIncidentSchema = createSafetyIncidentSchema.partial();
+
+export const deleteSafetyIncidentSchema = z.object({
+    deleteReason: z.string().min(1, "Delete reason is required")
+});
+
+export const incidentIdParamSchema = z.object({
+    incidentId: objectId,
+});
+
+// ----------------------------------------
+// Safety Observations
+// ----------------------------------------
+export const createSafetyObservationSchema = z.object({
+    title: z.string().min(1),
+    type: z.enum(["Unsafe Condition", "Unsafe Act", "Environmental", "Other"]),
+    severity: z.enum(["Low", "Medium", "High", "Critical"]),
+    location: z.string().min(1),
+    dueDate: z.string().optional(),
+    photos: z.array(z.string()).optional(),
+    status: z.enum(["Open", "Resolved", "Closed"]).optional(),
+    notes: z.string().optional()
+});
+
+export const updateSafetyObservationSchema = createSafetyObservationSchema.partial();
+
+export const deleteSafetyObservationSchema = z.object({
+    deleteReason: z.string().min(1, "Delete reason is required")
+});
+
+export const observationIdParamSchema = z.object({
+    observationId: objectId,
+});
+
+// ----------------------------------------
+// Hazard Reports
+// ----------------------------------------
+export const createHazardReportSchema = z.object({
+    title: z.string().min(1),
+    description: z.string().min(1),
+    controlActions: z.string().min(1),
+    dueDate: z.string().optional(),
+    status: z.enum(["Open", "Controlled", "Closed"]).optional()
+});
+
+export const updateHazardReportSchema = createHazardReportSchema.partial();
+
+export const deleteHazardReportSchema = z.object({
+    deleteReason: z.string().min(1, "Delete reason is required")
+});
+
+export const hazardIdParamSchema = z.object({
+    hazardId: objectId,
+});
+
+// ----------------------------------------
+// Safety Notices (Stop/Hold)
+// ----------------------------------------
+export const createSafetyNoticeSchema = z.object({
+    taskId: objectId.optional(),
+    location: z.string().optional(),
+    reason: z.string().min(1),
+    status: z.enum(["Active", "Lifted"]).optional()
+});
+
+export const updateSafetyNoticeSchema = createSafetyNoticeSchema.partial();
+
+export const deleteSafetyNoticeSchema = z.object({
+    deleteReason: z.string().min(1, "Delete reason is required")
+});
+
+export const noticeIdParamSchema = z.object({
+    noticeId: objectId,
+});
+
+// ----------------------------------------
+// Permits To Work (PTW)
+// ----------------------------------------
+export const createPTWSchema = z.object({
+    taskId: objectId,
+    permitType: z.enum(["Hot Work", "Confined Space", "Working at Heights", "Excavation", "General"]),
+    status: z.enum(["Pending", "Approved", "Denied", "Revoked"]).optional(),
+    validUntil: z.string().optional(),
+    notes: z.string().optional()
+});
+
+export const updatePTWSchema = createPTWSchema.partial();
+
+export const deletePTWSchema = z.object({
+    deleteReason: z.string().min(1, "Delete reason is required")
+});
+
+export const ptwIdParamSchema = z.object({
+    ptwId: objectId,
 });

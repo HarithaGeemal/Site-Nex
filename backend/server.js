@@ -11,6 +11,12 @@ import taskAssignmentRoutes from './routes/taskAssignmentRoutes.js';
 import { catalogRouter as materialCatalogRoutes, projectRouter as materialProjectRoutes } from './routes/materialRoutes.js';
 import issueRoutes from './routes/issueRoutes.js';
 import siteProgressReportRoutes from './routes/siteProgressReportRoutes.js';
+import safetyIncidentRoutes from './routes/safetyIncidentRoutes.js';
+import safetyObservationRoutes from './routes/safetyObservationRoutes.js';
+import hazardReportRoutes from './routes/hazardReportRoutes.js';
+import safetyNoticeRoutes from './routes/safetyNoticeRoutes.js';
+import ptwRoutes from './routes/ptwRoutes.js';
+import safetyDashboardRoutes from './routes/safetyDashboardRoutes.js';
 import protect from './middlewares/authMiddleware.js';
 import { validateRequest } from './middlewares/validateRequest.js';
 import { loadProject } from './middlewares/rbacMiddleware.js';
@@ -50,6 +56,12 @@ app.use('/api/projects/:projectId/issues', projectScopedMiddlewares, express.jso
 app.use('/api/projects/:projectId/materials', projectScopedMiddlewares, express.json(), materialProjectRoutes);
 app.use('/api/projects/:projectId/task-assignments', projectScopedMiddlewares, express.json(), taskAssignmentRoutes);
 app.use('/api/projects/:projectId/site-progress-reports', projectScopedMiddlewares, express.json(), siteProgressReportRoutes);
+app.use('/api/projects/:projectId/safety-incidents', projectScopedMiddlewares, express.json(), safetyIncidentRoutes);
+app.use('/api/projects/:projectId/safety-observations', projectScopedMiddlewares, express.json(), safetyObservationRoutes);
+app.use('/api/projects/:projectId/hazard-reports', projectScopedMiddlewares, express.json(), hazardReportRoutes);
+app.use('/api/projects/:projectId/safety-notices', projectScopedMiddlewares, express.json(), safetyNoticeRoutes);
+app.use('/api/projects/:projectId/ptws', projectScopedMiddlewares, express.json(), ptwRoutes);
+app.use('/api/projects/:projectId', projectScopedMiddlewares, express.json(), safetyDashboardRoutes);
 
 // Legacy flat route for global material catalog endpoints (/api/materials/items)
 app.use('/api/materials', express.json(), materialCatalogRoutes);
