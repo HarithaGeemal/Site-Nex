@@ -16,6 +16,9 @@ import safetyObservationRoutes from './routes/safetyObservationRoutes.js';
 import hazardReportRoutes from './routes/hazardReportRoutes.js';
 import safetyNoticeRoutes from './routes/safetyNoticeRoutes.js';
 import ptwRoutes from './routes/ptwRoutes.js';
+import toolRoutes from './routes/toolRoutes.js';
+import toolCheckoutRoutes from './routes/toolCheckoutRoutes.js';
+import materialRequestRoutes from './routes/materialRequestRoutes.js';
 import safetyDashboardRoutes from './routes/safetyDashboardRoutes.js';
 import protect from './middlewares/authMiddleware.js';
 import { validateRequest } from './middlewares/validateRequest.js';
@@ -61,9 +64,14 @@ app.use('/api/projects/:projectId/safety-observations', projectScopedMiddlewares
 app.use('/api/projects/:projectId/hazard-reports', projectScopedMiddlewares, express.json(), hazardReportRoutes);
 app.use('/api/projects/:projectId/safety-notices', projectScopedMiddlewares, express.json(), safetyNoticeRoutes);
 app.use('/api/projects/:projectId/ptws', projectScopedMiddlewares, express.json(), ptwRoutes);
-app.use('/api/projects/:projectId', projectScopedMiddlewares, express.json(), safetyDashboardRoutes);
+app.use('/api/projects/:projectId/safety-summary', projectScopedMiddlewares, express.json(), safetyDashboardRoutes);
 
-// Legacy flat route for global material catalog endpoints (/api/materials/items)
+// Store Keeper Ecosystem Mounts
+app.use('/api/projects/:projectId/tools', projectScopedMiddlewares, express.json(), toolRoutes);
+app.use('/api/projects/:projectId/checkouts', projectScopedMiddlewares, express.json(), toolCheckoutRoutes);
+app.use('/api/projects/:projectId/material-requests', projectScopedMiddlewares, express.json(), materialRequestRoutes);
+
+// Global Material Catalog Routes for global material catalog endpoints (/api/materials/items)
 app.use('/api/materials', express.json(), materialCatalogRoutes);
 
 app.use((req, res) => {

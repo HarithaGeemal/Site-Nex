@@ -42,8 +42,15 @@ export const createNotice = async (req, res) => {
             ...req.body,
             projectId: req.project._id,
             issuedBy: req.user._id,
-            status: "Active"
         };
+        
+        if (payload.taskId) {
+            const Task = (await import("../models/task.js")).default;
+            const taskExists = await Task.exists({ _id: payload.taskId, projectId: req.project._id });
+            if (!taskExists) return res.status(400).json({ success: false, message: "Task does not belong to this project" });
+        }
+
+        payload.status = "Active";
         const notice = await SafetyNotice.create(payload);
         return res.status(201).json({ success: true, message: "Safety Notice issued", notice });
     } catch (error) {

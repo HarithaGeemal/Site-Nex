@@ -3,6 +3,7 @@ import MaterialItem from "../models/materialItem.js";
 import MaterialStockMovement from "../models/materialStockMovement.js";
 import MaterialUsageLog from "../models/materialUsageLog.js";
 import MaterialService from "../services/materialService.js";
+import PurchaseOrder from "../models/purchaseOrder.js";
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -178,6 +179,12 @@ export const getMovementsByMaterial = async (req, res) => {
 export const logUsage = async (req, res) => {
     try {
         const { taskId, materialItemId, quantityUsed, usageDate } = req.body;
+
+        if (taskId) {
+            const Task = (await import("../models/task.js")).default;
+            const taskExists = await Task.exists({ _id: taskId, projectId: req.project._id });
+            if (!taskExists) return res.status(400).json({ success: false, message: "Task does not belong to this project" });
+        }
         const projectId = req.project._id;
 
         const result = await MaterialService.logUsage(
@@ -274,6 +281,52 @@ export const getMaterialUsageSummary = async (req, res) => {
     try {
         const summary = await MaterialService.getMaterialUsageSummary(req.project._id);
         return res.status(200).json({ success: true, summary });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Generate a Purchase Order for all materials below minimum threshold
+// @route   POST /api/materials/generate-purchase-order
+// @access  Store Keeper / Admin
+export const generatePurchaseOrder = async (req, res) => {
+    try {
+        // Find all materials where currentStock < minStockThreshold
+        const lowStockItems = await MaterialItem.find({
+            $expr: { $lt: ["$currentStock", "$minStockThreshold"] },
+            isArchived: false,
+            minStockThreshold: { $gt: 0 } // Must have a configured threshold
+        });
+
+        if (lowStockItems.length === 0) {
+            return res.status(200).json({ success: true, message: "Inventory is healthy. No items are below minimum thresholds." });
+        }
+
+        const items = lowStockItems.map(item => {
+            const deficit = item.minStockThreshold - item.currentStock;
+            const buffer = Math.ceil(item.minStockThreshold * 0.2); // 20% buffer on top of min threshold
+            return {
+                materialItemId: item._id,
+                currentStock: item.currentStock,
+                minThreshold: item.minStockThreshold,
+                requiredQuantity: deficit + buffer
+            };
+        });
+
+        const poNumber = "PO-" + Date.now().toString().slice(-6) + "-" + Math.floor(Math.random() * 1000);
+
+        const purchaseOrder = await PurchaseOrder.create({
+            poNumber,
+            generatedBy: req.user._id,
+            items,
+            status: "Draft"
+        });
+
+        return res.status(201).json({ 
+            success: true, 
+            message: `Purchase Order ${poNumber} generated successfully for ${items.length} items.`, 
+            purchaseOrder 
+        });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }

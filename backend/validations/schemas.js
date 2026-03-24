@@ -328,3 +328,78 @@ export const deletePTWSchema = z.object({
 export const ptwIdParamSchema = z.object({
     ptwId: objectId,
 });
+
+// ----------------------------------------
+// Tools & Equipment
+// ----------------------------------------
+export const createToolSchema = z.object({
+    name: z.string().min(1),
+    serialNumber: z.string().optional(),
+    condition: z.enum(["New", "Good", "Fair", "Poor"]).optional(),
+    totalQuantity: z.number().min(1).optional(),
+    notes: z.string().optional()
+});
+
+export const updateToolSchema = createToolSchema.partial().extend({
+    isBlacklisted: z.boolean().optional(),
+    availableQuantity: z.number().min(0).optional()
+});
+
+export const toolIdParamSchema = z.object({
+    toolId: objectId,
+});
+
+export const blacklistToolSchema = z.object({
+    isBlacklisted: z.boolean()
+});
+
+// ----------------------------------------
+// Tool Checkouts
+// ----------------------------------------
+export const createToolCheckoutSchema = z.object({
+    toolId: objectId,
+    taskId: objectId.optional(),
+    issuedTo: objectId,
+    expectedReturnDate: z.string(),
+    notes: z.string().optional()
+});
+
+export const returnToolCheckoutSchema = z.object({
+    returnCondition: z.enum(["New", "Good", "Fair", "Poor", "Damaged"]),
+    notes: z.string().optional()
+});
+
+export const checkoutIdParamSchema = z.object({
+    checkoutId: objectId,
+});
+
+// ----------------------------------------
+// Material Requests
+// ----------------------------------------
+export const createMaterialRequestSchema = z.object({
+    taskId: objectId,
+    materialItemId: objectId,
+    requestedQuantity: z.number().positive(),
+    notes: z.string().optional()
+});
+
+export const respondMaterialRequestSchema = z.object({
+    status: z.enum(["Approved", "Denied"]),
+    notes: z.string().optional()
+});
+
+export const materialRequestIdParamSchema = z.object({
+    requestId: objectId,
+});
+
+// ----------------------------------------
+// Purchase Orders
+// ----------------------------------------
+export const purchaseOrderIdParamSchema = z.object({
+    poId: objectId,
+});
+
+export const updatePurchaseOrderSchema = z.object({
+    status: z.enum(["Draft", "Ordered", "Received", "Cancelled"]),
+    notes: z.string().optional()
+});

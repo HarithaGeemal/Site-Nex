@@ -38,10 +38,15 @@ export const getPTWById = async (req, res) => {
 // @access  PM / SE
 export const createPTW = async (req, res) => {
     try {
+        const data = { ...req.body, projectId: req.project._id, requestedBy: req.user._id };
+        
+        if (data.taskId) {
+            const Task = (await import("../models/task.js")).default;
+            const taskExists = await Task.exists({ _id: data.taskId, projectId: req.project._id });
+            if (!taskExists) return res.status(400).json({ success: false, message: "Task does not belong to this project" });
+        }
         const payload = {
-            ...req.body,
-            projectId: req.project._id,
-            requestedBy: req.user._id,
+            ...data,
             status: "Pending" // By default
         };
         const ptw = await PermitToWork.create(payload);

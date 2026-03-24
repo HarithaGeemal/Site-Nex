@@ -24,12 +24,14 @@ import {
     getUsageByTask,
     voidUsage,
     getMaterialUsageSummary,
+    generatePurchaseOrder
 } from "../controllers/materialController.js";
 
 const catalogRouter = express.Router();
 const projectRouter = express.Router();
 
 // ── Material Catalog (global, not project-scoped) ────────────────────
+catalogRouter.post("/generate-purchase-order", protect, authorizeGlobalRole("ADMIN", "STORE_KEEPER"), generatePurchaseOrder);
 catalogRouter.post("/items", protect, authorizeGlobalRole("ADMIN", "STORE_KEEPER"), validateRequest({ body: createMaterialItemSchema }), createMaterialItem);
 catalogRouter.get("/items", protect, getAllMaterialItems);
 catalogRouter.put("/items/:id", protect, authorizeGlobalRole("ADMIN", "STORE_KEEPER"), validateRequest({ params: idParamSchema }), updateMaterialItem);
