@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { useAuth } from '../../context/AuthContext';
@@ -7,6 +8,7 @@ import { usePMContext } from '../../context/PMContext';
 const Dashboard = () => {
     const { user } = useAuth();
     const { projects, tasks, issues, workers, dailyReports } = usePMContext();
+    const navigate = useNavigate();
 
     // Basic stats calculation from live context data
     const activeProjectsCount = projects.filter(p => p.status === 'In Progress').length;
@@ -137,29 +139,47 @@ const Dashboard = () => {
                         </p>
                     </div>
 
-                    {/* Critical Issues */}
+                    {/* Issues Requiring PM Action */}
                     <div className="bg-white rounded-xl shadow-sm border border-concrete-light p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-bold text-steel-blue">Urgent Issues</h2>
-                            <span className="bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded-full">{issues.filter(i => i.priority === 'Critical' || i.priority === 'High').length}</span>
+                            <h2 className="text-lg font-bold text-steel-blue">Issues Requiring Action</h2>
+                            <span className="bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded-full">
+                                {issues.filter(i => i.status !== 'Closed' && i.status !== 'Resolved').length}
+                            </span>
                         </div>
-                        <div className="space-y-4">
-                            {issues.filter(i => i.status === 'Open').length === 0 && (
-                                <div className="text-center text-concrete py-4">No open issues.</div>
+                        <div className="space-y-3">
+                            {issues.filter(i => i.status !== 'Closed').length === 0 && (
+                                <div className="text-center text-concrete py-4">All issues are closed. Great work!</div>
                             )}
-                            {issues.filter(i => i.status === 'Open').slice(0, 3).map(issue => (
-                                <div key={issue.id} className="border-l-4 border-amber bg-gray-50 p-3 rounded-r-md">
-                                    <h4 className="font-bold text-sm text-gray-800">{issue.title}</h4>
-                                    <p className="text-xs text-concrete mt-1 line-clamp-2">{issue.description}</p>
-                                    <div className="mt-2 text-xs font-medium text-amber flex justify-between">
-                                        <span>{getProjectName(issue.projectId)}</span>
-                                        <span>{issue.reportedDate}</span>
+                            {issues.filter(i => i.status !== 'Closed').slice(0, 4).map(issue => {
+                                const priorityBorder = {
+                                    Critical: 'border-red-500',
+                                    High: 'border-orange-400',
+                                    Medium: 'border-yellow-400',
+                                    Low: 'border-green-400',
+                                };
+                                const statusBadge = {
+                                    Open: 'bg-red-100 text-red-800',
+                                    Assigned: 'bg-blue-100 text-blue-800',
+                                    'In Progress': 'bg-indigo-100 text-indigo-800',
+                                    Resolved: 'bg-green-100 text-green-800',
+                                };
+                                return (
+                                    <div key={issue.id} className={`border-l-4 ${priorityBorder[issue.priority] || 'border-gray-300'} bg-gray-50 p-3 rounded-r-md`}>
+                                        <div className="flex justify-between items-start">
+                                            <h4 className="font-bold text-sm text-gray-800 flex-1 pr-2">{issue.title}</h4>
+                                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full shrink-0 ${statusBadge[issue.status] || 'bg-gray-100 text-gray-600'}`}>{issue.status}</span>
+                                        </div>
+                                        <div className="mt-1.5 text-xs text-concrete flex justify-between">
+                                            <span>{getProjectName(issue.projectId)}</span>
+                                            <span className="font-medium">{issue.priority}</span>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
-                        <button className="w-full mt-4 py-2 text-sm font-semibold text-steel-blue hover:bg-gray-50 border border-concrete-light rounded transition-colors">
-                            View All Issues
+                        <button onClick={() => navigate('/pm/issues')} className="w-full mt-4 py-2 text-sm font-semibold text-steel-blue hover:bg-gray-50 border border-concrete-light rounded transition-colors">
+                            Manage All Issues →
                         </button>
                     </div>
 

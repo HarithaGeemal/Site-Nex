@@ -123,6 +123,23 @@ export const updateIssue = async (req, res) => {
     }
 };
 
+// @desc    Update issue status directly
+// @route   PATCH /api/projects/:projectId/issues/:id/status
+// @access  Project Manager
+export const updateIssueStatus = async (req, res) => {
+    try {
+        const { status } = req.body;
+        if (!["Open", "Assigned", "In Progress", "Resolved", "Closed"].includes(status)) {
+            return res.status(400).json({ success: false, message: "Invalid status value provided" });
+        }
+        req.issue.status = status;
+        await req.issue.save();
+        return res.status(200).json({ success: true, message: "Issue status updated successfully", issue: req.issue });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 // @desc    Assign an issue to a user
 // @route   PATCH /api/projects/:projectId/issues/:id/assign
 // @access  Admin / Project Manager

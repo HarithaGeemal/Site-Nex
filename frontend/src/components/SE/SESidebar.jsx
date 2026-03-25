@@ -13,17 +13,19 @@ const SESidebar = () => {
     };
 
     return (
-        <aside className="w-64 h-screen bg-emerald-800 text-white p-4 flex flex-col shadow-lg z-20 sticky top-0">
+        <aside className="w-64 h-screen bg-steel-blue text-white p-4 flex flex-col shadow-lg z-20 sticky top-0">
             <div className="text-2xl font-bold mb-4 tracking-wide flex items-center gap-2">
                 <img src={logoLarge} alt="logo dark" />
             </div>
-            <nav className="flex flex-col gap-2 grow mt-6">
+            <nav className="flex flex-col gap-2 grow ">
                 <Link to="/se/dashboard" className="p-3 hover:bg-white/10 rounded transition-colors text-sm font-medium">Dashboard</Link>
                 <Link to="/se/tasks" className="p-3 hover:bg-white/10 rounded transition-colors text-sm font-medium">Tasks & Subtasks</Link>
                 <Link to="/se/approvals" className="p-3 hover:bg-white/10 rounded transition-colors text-sm font-medium flex justify-between items-center">
                     Approvals
                 </Link>
                 <Link to="/se/materials" className="p-3 hover:bg-white/10 rounded transition-colors text-sm font-medium">Material Requests</Link>
+                <Link to="/se/issues" className="p-3 hover:bg-white/10 rounded transition-colors text-sm font-medium">Issue Reporting</Link>
+                <Link to="/se/safety-notices" className="p-3 hover:bg-white/10 rounded transition-colors text-sm font-medium">Safety Notices</Link>
                 <Link to="/se/daily-reports" className="p-3 hover:bg-white/10 rounded transition-colors text-sm font-medium">Daily Reports</Link>
             </nav>
             <div className="mt-auto pt-4 border-t border-white/20 w-full">

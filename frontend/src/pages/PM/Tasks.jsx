@@ -75,21 +75,21 @@ const Tasks = () => {
     });
 
     const openModal = (task = null) => {
-        if (task) { 
-            setCurrentTask(task); 
-            setFormData({ 
-                ...task, 
+        if (task) {
+            setCurrentTask(task);
+            setFormData({
+                ...task,
                 assignedTo: task.assignedTo || [],
                 assignedSiteEngineers: task.assignedSiteEngineers || [],
                 assignedStoreKeepers: task.assignedStoreKeepers || []
-            }); 
-        } else { 
-            setCurrentTask(null); 
-            setFormData({ 
-                projectId: projects[0]?.id || '', name: '', description: '', 
+            });
+        } else {
+            setCurrentTask(null);
+            setFormData({
+                projectId: projects[0]?.id || '', name: '', description: '',
                 assignedTo: [], assignedSiteEngineers: [], assignedStoreKeepers: [],
-                startDate: '', endDate: '', status: 'To Do', priority: 'Medium' 
-            }); 
+                startDate: '', endDate: '', status: 'To Do', priority: 'Medium'
+            });
         }
         setIsModalOpen(true);
     };
@@ -152,7 +152,7 @@ const Tasks = () => {
     const handleDeleteRequest = (id) => {
         setTaskToDelete(id);
     };
-    
+
     const confirmDelete = () => {
         if (taskToDelete) {
             deleteTask(taskToDelete);
@@ -283,8 +283,8 @@ const Tasks = () => {
                             </div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea name="description" value={formData.description} onChange={handleChange} rows="2" required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Workers</label>
-                                <select 
-                                    name="assignedTo" multiple value={formData.assignedTo} onChange={handleMultiSelectChange} 
+                                <select
+                                    name="assignedTo" multiple value={formData.assignedTo} onChange={handleMultiSelectChange}
                                     className="w-full border border-gray-300 rounded px-3 py-2 h-20" disabled={!formData.projectId}
                                 >
                                     {workers.filter(w => w.projectId === formData.projectId).map(w => <option key={w.id} value={w.id}>{w.name} — {w.trade}</option>)}
@@ -292,8 +292,8 @@ const Tasks = () => {
                                 {!formData.projectId && <p className="text-xs text-red-500 mt-1">Select a project first.</p>}
                             </div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Site Engineers</label>
-                                <select 
-                                    name="assignedSiteEngineers" multiple value={formData.assignedSiteEngineers} onChange={handleSEChange} 
+                                <select
+                                    name="assignedSiteEngineers" multiple value={formData.assignedSiteEngineers} onChange={handleSEChange}
                                     className="w-full border border-gray-300 rounded px-3 py-2 h-20" disabled={!formData.projectId}
                                 >
                                     {projectMembers.filter(m => m.role === 'SITE_ENGINEER').map((m, i) => (
@@ -302,8 +302,8 @@ const Tasks = () => {
                                 </select>
                             </div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Store Keepers</label>
-                                <select 
-                                    name="assignedStoreKeepers" multiple value={formData.assignedStoreKeepers} onChange={handleSKChange} 
+                                <select
+                                    name="assignedStoreKeepers" multiple value={formData.assignedStoreKeepers} onChange={handleSKChange}
                                     className="w-full border border-gray-300 rounded px-3 py-2 h-20" disabled={!formData.projectId}
                                 >
                                     {projectMembers.filter(m => m.role === 'STORE_KEEPER').map((m, i) => (

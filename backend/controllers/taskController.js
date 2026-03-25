@@ -169,16 +169,6 @@ export const updateTask = async (req, res) => {
             }
         }
 
-        // Prevent direct completion bypass
-        const isCurrentlyCompleted = req.task.status === "Completed" || req.task.percentComplete === 100;
-        const intendsToComplete = status === "Completed" || percentComplete === 100;
-        if (!isCurrentlyCompleted && intendsToComplete && !req.task.completionApprovedAt) {
-            return res.status(422).json({
-                success: false,
-                message: "Direct completion is not allowed. Please use the request and approve completion workflow.",
-            });
-        }
-
         // Prevent updating completion progress if task is Blocked (Stop/Hold Safety Notice)
         if (req.task.status === "Blocked") {
             if (percentComplete !== undefined && percentComplete !== req.task.percentComplete) {

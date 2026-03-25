@@ -25,6 +25,8 @@ import SETasks from "./pages/SE/SETasks";
 import SEApprovals from "./pages/SE/SEApprovals";
 import SEMaterials from "./pages/SE/SEMaterials";
 import SEDailyReports from "./pages/SE/SEDailyReports";
+import SESafetyNotices from "./pages/SE/SESafetyNotices";
+import SEIssues from "./pages/SE/SEIssues";
 
 const PrivateRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
@@ -76,6 +78,8 @@ const App = () => {
                     <Route path="tasks" element={<SETasks />} />
                     <Route path="approvals" element={<SEApprovals />} />
                     <Route path="materials" element={<SEMaterials />} />
+                    <Route path="issues" element={<SEIssues />} />
+                    <Route path="safety-notices" element={<SESafetyNotices />} />
                     <Route path="daily-reports" element={<SEDailyReports />} />
                 </Route>
 

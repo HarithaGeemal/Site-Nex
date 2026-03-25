@@ -14,6 +14,7 @@ import {
     getIssuesByProject,
     getIssueById,
     updateIssue,
+    updateIssueStatus,
     assignIssue,
     resolveIssue,
     closeIssue,
@@ -25,12 +26,17 @@ const router = express.Router();
 router.post("/", validateRequest({ body: createIssueSchema }), authorizeProjectAccess("STORE_KEEPER"), createIssue);
 router.get("/", validateRequest({ query: getIssuesQuerySchema }), authorizeProjectAccess("STORE_KEEPER"), getIssuesByProject);
 
-router.use("/:issueId", validateRequest({ params: issueIdParamSchema }), loadIssue);
+// Load issue middleware array
+const loadIssueMw = [validateRequest({ params: issueIdParamSchema }), loadIssue];
 
-router.get("/:issueId", authorizeProjectAccess("STORE_KEEPER"), getIssueById);
-router.put("/:issueId", validateRequest({ body: updateIssueSchema }), authorizeProjectAccess("SITE_ENGINEER"), updateIssue);
-router.patch("/:issueId/assign", validateRequest({ body: assignIssueSchema }), authorizeProjectAccess("PROJECT_MANAGER"), assignIssue);
-router.patch("/:issueId/resolve", validateRequest({ body: resolveIssueSchema }), authorizeProjectAccess("SITE_ENGINEER"), resolveIssue);
-router.patch("/:issueId/close", authorizeProjectAccess("PROJECT_MANAGER"), closeIssue);
+// IMPORTANT: Specific sub-paths MUST come before generic /:issueId routes
+router.patch("/:issueId/status", loadIssueMw, authorizeProjectAccess("PROJECT_MANAGER"), updateIssueStatus);
+router.patch("/:issueId/assign", loadIssueMw, validateRequest({ body: assignIssueSchema }), authorizeProjectAccess("PROJECT_MANAGER"), assignIssue);
+router.patch("/:issueId/resolve", loadIssueMw, validateRequest({ body: resolveIssueSchema }), authorizeProjectAccess("SITE_ENGINEER"), resolveIssue);
+router.patch("/:issueId/close", loadIssueMw, authorizeProjectAccess("PROJECT_MANAGER"), closeIssue);
+
+// Generic single-issue routes
+router.get("/:issueId", loadIssueMw, authorizeProjectAccess("STORE_KEEPER"), getIssueById);
+router.put("/:issueId", loadIssueMw, validateRequest({ body: updateIssueSchema }), authorizeProjectAccess("SITE_ENGINEER"), updateIssue);
 
 export default router;

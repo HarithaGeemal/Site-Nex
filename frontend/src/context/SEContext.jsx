@@ -140,13 +140,16 @@ export const SEProvider = (props) => {
 
     const requestMainTaskCompletion = async (projectId, taskId, note) => {
         try {
-            const { data } = await axiosClient.patch(`/projects/${projectId}/tasks/${taskId}/request-completion`, { note });
+            const { data } = await axiosClient.put(`/projects/${projectId}/tasks/${taskId}`, {
+                status: 'Completed',
+                percentComplete: 100
+            });
             if (data.success) await fetchAssignedTasks();
             return data;
         } catch (error) {
-            console.error("Error requesting task completion", error);
+            console.error("Error completing task", error);
             const msg = error.response?.data?.message || error.message;
-            alert('Failed to request completion: ' + msg);
+            alert('Failed to complete task: ' + msg);
             throw error;
         }
     };

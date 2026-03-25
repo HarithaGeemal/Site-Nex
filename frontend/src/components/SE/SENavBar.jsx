@@ -10,8 +10,8 @@ const SENavBar = () => {
     return (
         <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
             <div className="flex items-center gap-4">
-                <h2 className="text-lg font-bold text-emerald-800">SiteNex</h2>
-                <span className="text-xs text-emerald-600 font-semibold uppercase tracking-wide">SE Portal</span>
+                <h2 className="text-xl font-bold text-steel-blue tracking-tight">SiteNex</h2>
+                <span className="text-xs text-steel-blue font-semibold uppercase tracking-wide">SE Portal</span>
             </div>
             <div className="flex items-center gap-4">
                 <span className="text-sm text-gray-600">📋 {dailyReports.length} reports</span>

@@ -69,10 +69,10 @@ const SETasks = () => {
     };
 
     const handleCompleteMain = async (task) => {
-        if (window.confirm("Are you sure you want to request completion for this Main Task? This will be routed to the Project Manager for final approval.")) {
+        if (window.confirm("Are you sure you want to mark this task as completed?")) {
             try {
-                await requestMainTaskCompletion(task.projectId, task.id, "Site Engineer submitted main task completion.");
-                alert("Completion requested successfully.");
+                await requestMainTaskCompletion(task.projectId, task.id);
+                alert("Task marked as completed successfully.");
             } catch (err) {
                 console.error(err);
             }
@@ -112,7 +112,7 @@ const SETasks = () => {
                                 <div className="flex gap-2">
                                     {!mainTask.completionRequested && mainTask.status !== "Completed" && (
                                         <button onClick={() => handleCompleteMain(mainTask)} className="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-emerald-700 shadow-sm">
-                                            Request Completion
+                                            Mark as Completed
                                         </button>
                                     )}
                                     {mainTask.completionRequested && mainTask.status !== "Completed" && (

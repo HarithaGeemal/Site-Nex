@@ -162,34 +162,62 @@ const ToolsEquipment = () => {
                     
                     {/* INVENTORY SECTION */}
                     <div>
-                        <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">Project Inventory</h2>
+                        <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">Project Inventory ({tools.length} tools)</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {tools.map(tool => (
-                                <div key={tool._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col hover:shadow-md transition-shadow ${tool.isBlacklisted ? 'border-red-300 bg-red-50' : 'border-concrete-light'}`}>
-                                    <div className="flex justify-between items-start mb-2">
+                            {tools.map(tool => {
+                                const stockPercent = tool.totalQuantity > 0 ? Math.round((tool.availableQuantity / tool.totalQuantity) * 100) : 0;
+                                const conditionColor = {
+                                    'New': 'bg-blue-100 text-blue-800',
+                                    'Good': 'bg-green-100 text-green-800',
+                                    'Fair': 'bg-yellow-100 text-yellow-800',
+                                    'Poor': 'bg-red-100 text-red-800',
+                                };
+                                return (
+                                <div key={tool._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col hover:shadow-md transition-shadow relative ${tool.isBlacklisted ? 'border-red-300 ring-2 ring-red-200' : 'border-concrete-light'}`}>
+                                    {/* Blacklist Banner */}
+                                    {tool.isBlacklisted && (
+                                        <div className="absolute top-0 left-0 right-0 bg-red-600 text-white text-center text-xs font-bold py-1 rounded-t-xl">
+                                            🚫 CHECKOUT BLOCKED — Blacklisted by Safety Officer
+                                        </div>
+                                    )}
+                                    
+                                    <div className={`flex justify-between items-start mb-2 ${tool.isBlacklisted ? 'mt-5' : ''}`}>
                                         <h3 className="font-bold text-gray-800 text-sm truncate pr-2">{tool.name}</h3>
-                                        <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${tool.isBlacklisted ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-700'}`}>
-                                            {tool.isBlacklisted ? 'BLACKLISTED' : tool.category}
+                                        <span className={`px-2 py-0.5 text-xs font-bold rounded-full shrink-0 ${conditionColor[tool.condition] || 'bg-gray-100 text-gray-700'}`}>
+                                            {tool.condition}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-concrete mb-1">Stock: <span className="font-semibold text-gray-700">{tool.availableQuantity} / {tool.totalQuantity}</span></p>
-                                    <p className="text-xs text-concrete mb-3">Condition: <span className="font-semibold text-gray-700">{tool.condition}</span></p>
                                     
-                                    <div className="mt-auto pt-3 border-t border-concrete-light flex justify-between items-center">
-                                        <span className="text-xs text-gray-500">{tool.serialNumber || 'No S/N'}</span>
-                                        <button 
-                                            onClick={() => openCheckoutModal(tool)} 
-                                            disabled={tool.availableQuantity < 1 || tool.isBlacklisted}
-                                            className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Check Out
-                                        </button>
+                                    {/* Serial Number */}
+                                    <p className="text-xs text-gray-400 mb-2 font-mono">{tool.serialNumber || 'No Serial Number'}</p>
+                                    
+                                    {/* Stock Bar */}
+                                    <div className="mb-2">
+                                        <div className="flex justify-between text-xs mb-1">
+                                            <span className="text-concrete font-medium">Available Stock</span>
+                                            <span className={`font-bold ${stockPercent === 0 ? 'text-red-600' : stockPercent < 30 ? 'text-orange-600' : 'text-green-700'}`}>
+                                                {tool.availableQuantity} / {tool.totalQuantity}
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div className={`h-2 rounded-full transition-all ${stockPercent === 0 ? 'bg-red-500' : stockPercent < 30 ? 'bg-orange-400' : 'bg-green-500'}`} 
+                                                style={{ width: `${stockPercent}%` }} />
+                                        </div>
                                     </div>
+                                    
+                                    {/* Notes */}
+                                    {tool.notes && (
+                                        <p className="text-xs text-gray-500 italic mb-2 line-clamp-2">📝 {tool.notes}</p>
+                                    )}
+                                    
+                                    {/* Added date */}
+                                    <p className="text-xs text-gray-400 mb-2">Added: {new Date(tool.createdAt).toLocaleDateString()}</p>
                                 </div>
-                            ))}
+                                );
+                            })}
                             {tools.length === 0 && (
                                 <div className="col-span-full py-8 text-center text-gray-500 bg-white rounded-xl border border-dashed">
-                                    No tools registered for this project.
+                                    No tools registered for this project. Tools can be added by the Store Keeper.
                                 </div>
                             )}
                         </div>
@@ -209,7 +237,6 @@ const ToolsEquipment = () => {
                                             <th className="px-4 py-3">Date</th>
                                             <th className="px-4 py-3">Return Due</th>
                                             <th className="px-4 py-3">Status</th>
-                                            <th className="px-4 py-3 text-right">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
@@ -229,16 +256,6 @@ const ToolsEquipment = () => {
                                                         <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${isActive ? 'bg-amber text-white' : 'bg-green-100 text-green-800'}`}>
                                                             {c.status}
                                                         </span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right">
-                                                        {isActive && (
-                                                            <button 
-                                                                onClick={() => openReturnModal(c)}
-                                                                className="text-emerald-600 hover:text-emerald-800 font-semibold text-xs bg-emerald-50 px-2 py-1 rounded"
-                                                            >
-                                                                Return
-                                                            </button>
-                                                        )}
                                                     </td>
                                                 </tr>
                                             );

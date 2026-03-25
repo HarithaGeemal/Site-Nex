@@ -226,9 +226,9 @@ export const PMProvider = (props) => {
             await axiosClient.delete(`/projects/${id}`, { data: { reason: "PM deleted project" } });
             setProjects(prev => removeById(prev, id));
             setTasks(prev => prev.filter(t => t.projectId !== id && (t.projectId && t.projectId._id !== id)));
-        } catch (e) { 
+        } catch (e) {
             const msg = e.response?.data?.message || e.message;
-            console.error("Error deleting project:", msg); 
+            console.error("Error deleting project:", msg);
             alert('Failed to delete project: ' + msg);
         }
     };
@@ -238,7 +238,7 @@ export const PMProvider = (props) => {
         try {
             const projectId = task.projectId;
             if (!projectId) { alert('Please select a project.'); return; }
-            
+
             const payload = {
                 name: task.name,
                 description: task.description,
@@ -283,15 +283,28 @@ export const PMProvider = (props) => {
         }
     };
 
+    const approveTaskCompletion = async (id, note = "Approved by PM") => {
+        const existing = tasks.find(t => t.id === id);
+        if (!existing) return;
+        try {
+            await axiosClient.patch(`/projects/${existing.projectId}/tasks/${id}/approve-completion`, { note });
+            await fetchTasks();
+        } catch (e) {
+            const msg = e.response?.data?.message || e.message;
+            console.error("Error approving task:", msg);
+            alert('Failed to approve task completion: ' + msg);
+        }
+    };
+
     const deleteTask = async (id) => {
         const existing = tasks.find(t => t.id === id);
         if (!existing) return;
         try {
             await axiosClient.patch(`/projects/${existing.projectId}/tasks/${id}/cancel`, { reason: "PM cancelled task" });
             await fetchTasks();
-        } catch (e) { 
+        } catch (e) {
             const msg = e.response?.data?.message || e.message;
-            console.error("Error cancelling task:", msg); 
+            console.error("Error cancelling task:", msg);
             alert('Failed to delete task: ' + msg);
         }
     };
@@ -406,6 +419,15 @@ export const PMProvider = (props) => {
             await axiosClient.patch(`/projects/${existing.projectId}/issues/${id}/close`);
             await fetchIssues();
         } catch (e) { console.error("Error closing issue:", e.response?.data || e.message); }
+    };
+
+    const updateIssueStatus = async (id, status) => {
+        const existing = issues.find(i => i.id === id);
+        if (!existing) return;
+        try {
+            await axiosClient.patch(`/projects/${existing.projectId}/issues/${id}/status`, { status });
+            await fetchIssues();
+        } catch (e) { console.error("Error updating issue status:", e.response?.data || e.message); }
     };
 
     // Project Members
@@ -533,9 +555,9 @@ export const PMProvider = (props) => {
         projects, tasks, workers, issues, dailyReports, safetyObservations, stopHoldNotices, blockedTasks, availableUsers,
         fetchProjects, fetchTasks, fetchWorkers, fetchIssues, fetchDailyReports, fetchSafetyObservations, fetchStopHoldNotices, fetchBlockedTasks, fetchAvailableUsers,
         addProject, updateProject, deleteProject,
-        addTask, updateTask, deleteTask,
+        addTask, updateTask, deleteTask, approveTaskCompletion,
         addWorker, updateWorker, deleteWorker,
-        addIssue, updateIssue, deleteIssue, assignIssue, resolveIssue, closeIssue,
+        addIssue, updateIssue, deleteIssue, assignIssue, resolveIssue, closeIssue, updateIssueStatus,
         addProjectMember, removeProjectMember,
         addDailyReport, updateDailyReport, deleteDailyReport,
         addSafetyObservation, updateSafetyObservation, deleteSafetyObservation,
