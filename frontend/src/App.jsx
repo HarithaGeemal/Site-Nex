@@ -6,7 +6,9 @@ import SELayout from "./layouts/SELayout";
 import Dashboard from "./pages/PM/Dashboard";
 import { PMProvider } from "./context/PMContext";
 import { SEProvider } from "./context/SEContext";
+import { SOProvider } from "./context/SOContext";
 import RoleGuard from "./components/RoleGuard";
+import SOLayout from "./layouts/SOLayout";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -27,6 +29,14 @@ import SEMaterials from "./pages/SE/SEMaterials";
 import SEDailyReports from "./pages/SE/SEDailyReports";
 import SESafetyNotices from "./pages/SE/SESafetyNotices";
 import SEIssues from "./pages/SE/SEIssues";
+
+import SODashboard from "./pages/SO/SODashboard";
+import SOObservations from "./pages/SO/SOObservations";
+import SOIncidents from "./pages/SO/SOIncidents";
+import SOHazards from "./pages/SO/SOHazards";
+import SOPTWs from "./pages/SO/SOPTWs";
+import SOTools from "./pages/SO/SOTools";
+import SOSafetyNotices from "./pages/SO/SOSafetyNotices";
 
 const PrivateRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
@@ -81,6 +91,20 @@ const App = () => {
                     <Route path="issues" element={<SEIssues />} />
                     <Route path="safety-notices" element={<SESafetyNotices />} />
                     <Route path="daily-reports" element={<SEDailyReports />} />
+                </Route>
+
+                {/* Protected SO Routes — wrapped in SOProvider */}
+                <Route path="/so" element={
+                    <PrivateRoute><SOProvider><SOLayout /></SOProvider></PrivateRoute>
+                }>
+                    <Route index element={<Navigate to="dashboard" replace />} />
+                    <Route path="dashboard" element={<SODashboard />} />
+                    <Route path="observations" element={<SOObservations />} />
+                    <Route path="incidents" element={<SOIncidents />} />
+                    <Route path="hazards" element={<SOHazards />} />
+                    <Route path="ptws" element={<SOPTWs />} />
+                    <Route path="safety-notices" element={<SOSafetyNotices />} />
+                    <Route path="tools" element={<SOTools />} />
                 </Route>
 
                 {/* Fallback */}

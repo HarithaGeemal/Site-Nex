@@ -27,6 +27,8 @@ const RoleGuard = () => {
         case 'SITE_ENGINEER':
         case 'ASSISTANT_ENGINEER':
             return <Navigate to="/se/dashboard" replace />;
+        case 'SAFETY_OFFICER':
+            return <Navigate to="/so/dashboard" replace />;
         default:
             return (
                 <div className="flex flex-col h-screen items-center justify-center bg-gray-50 text-center px-4">

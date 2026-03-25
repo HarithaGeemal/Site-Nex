@@ -11,6 +11,7 @@ export const SEProvider = (props) => {
     const [materialRequests, setMaterialRequests] = useState([]);
     const [dashboardMetrics, setDashboardMetrics] = useState(null);
     const [dailyReports, setDailyReports] = useState([]);
+    const [ptws, setPtws] = useState([]);
 
     const fetchProjects = useCallback(async () => {
         try {
@@ -154,6 +155,34 @@ export const SEProvider = (props) => {
         }
     };
 
+    const fetchPTWs = useCallback(async () => {
+        // Can't easily use /projects/:projectId without project context here natively,
+        // but since SE loads active project in component, let's expose fetch logic.
+    }, []);
+
+    const fetchPTWsByProject = async (projectId) => {
+        try {
+            const { data } = await axiosClient.get(`/projects/${projectId}/ptws`);
+            if (data.success) setPtws(data.ptws.map(p => ({ ...p, id: p._id })));
+        } catch (error) { console.error("Error fetching PTWs:", error); }
+    };
+
+    const createPTW = async (projectId, payload) => {
+        try {
+            const { data } = await axiosClient.post(`/projects/${projectId}/ptws`, payload);
+            if (data.success) {
+                await fetchPTWsByProject(projectId);
+                await fetchAssignedTasks();
+            }
+            return data;
+        } catch (error) {
+            console.error("Error creating PTW", error);
+            const msg = error.response?.data?.message || error.message;
+            alert('Failed to request PTW: ' + msg);
+            throw error;
+        }
+    };
+
     useEffect(() => {
         fetchProjects();
         fetchDashboardMetrics();
@@ -164,9 +193,9 @@ export const SEProvider = (props) => {
     }, [fetchProjects, fetchDashboardMetrics, fetchAssignedTasks, fetchSubtaskApprovals, fetchMaterialRequests, fetchDailyReports]);
 
     const value = {
-        projects, assignedTasks, subtaskApprovals, materialRequests, dashboardMetrics, dailyReports,
-        fetchProjects, fetchDashboardMetrics, fetchAssignedTasks, fetchSubtaskApprovals, fetchMaterialRequests, fetchDailyReports,
-        createSubtask, approveSubtask, requestMainTaskCompletion, addDailyReport
+        projects, assignedTasks, subtaskApprovals, materialRequests, dashboardMetrics, dailyReports, ptws,
+        fetchProjects, fetchDashboardMetrics, fetchAssignedTasks, fetchSubtaskApprovals, fetchMaterialRequests, fetchDailyReports, fetchPTWsByProject,
+        createSubtask, approveSubtask, requestMainTaskCompletion, addDailyReport, createPTW
     };
 
     return (

@@ -81,6 +81,7 @@ export const createProjectSchema = z.object({
     actualBudgetUsed: z.number().min(0).optional(),
     assignedSiteEngineers: z.array(z.string()).optional(),
     assignedStoreKeepers: z.array(z.string()).optional(),
+    assignedSafetyOfficers: z.array(z.string()).optional(),
 });
 
 export const updateProjectSchema = createProjectSchema.partial();

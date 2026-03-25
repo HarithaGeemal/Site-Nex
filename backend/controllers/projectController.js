@@ -30,12 +30,48 @@ const formatProjectDates = (p) => {
     };
 };
 
+const checkActiveAssignments = async (userIds, excludeProjectId = null) => {
+    if (!userIds || userIds.length === 0) return null;
+    
+    // Find active memberships for these users
+    const query = {
+        userId: { $in: userIds },
+        removedAt: null
+    };
+    if (excludeProjectId) {
+        query.projectId = { $ne: excludeProjectId };
+    }
+
+    const activeMembersHips = await ProjectMembership.find(query).populate("projectId", "status name");
+
+    const conflict = activeMembersHips.find(m => 
+        m.projectId && m.projectId.status !== "Completed"
+    );
+
+    if (conflict) {
+        return `User is already assigned to another active project: ${conflict.projectId.name}`;
+    }
+    return null;
+};
+
 // @desc    Create a new project
 // @route   POST /api/projects
 // @access  Admin
 export const createProject = async (req, res) => {
     try {
-        const { name, location, startDate, endDate, description, budget, status, progress, clientName, projectCode, plannedBudget, actualBudgetUsed, assignedSiteEngineers, assignedStoreKeepers } = req.body;
+        const { name, location, startDate, endDate, description, budget, status, progress, clientName, projectCode, plannedBudget, actualBudgetUsed, assignedSiteEngineers, assignedStoreKeepers, assignedSafetyOfficers } = req.body;
+
+        // Check for active assignments
+        const usersToCheck = [
+            ...(assignedSiteEngineers || []),
+            ...(assignedStoreKeepers || []),
+            ...(assignedSafetyOfficers || [])
+        ];
+        
+        const conflictError = await checkActiveAssignments(usersToCheck);
+        if (conflictError) {
+            return res.status(400).json({ success: false, message: conflictError });
+        }
 
         const project = await Project.create({
             name,
@@ -78,6 +114,16 @@ export const createProject = async (req, res) => {
                 role: "STORE_KEEPER"
             }));
             await ProjectMembership.insertMany(skMemberships);
+        }
+
+        // Assign Safety Officers
+        if (assignedSafetyOfficers && Array.isArray(assignedSafetyOfficers) && assignedSafetyOfficers.length > 0) {
+            const soMemberships = assignedSafetyOfficers.map(id => ({
+                projectId: project._id,
+                userId: id,
+                role: "SAFETY_OFFICER"
+            }));
+            await ProjectMembership.insertMany(soMemberships);
         }
 
         const projectData = formatProjectDates(project);
@@ -193,6 +239,14 @@ export const addMember = async (req, res) => {
         // Verify the user actually exists in the DB
         const userExists = await User.findOne({ _id: userId, isActive: true });
         if (!userExists) return res.status(404).json({ success: false, message: "User not found or inactive" });
+
+        // If the role is SE, SK, or SO, block if they are assigned to another active project
+        if (["SITE_ENGINEER", "STORE_KEEPER", "SAFETY_OFFICER"].includes(role)) {
+            const conflictError = await checkActiveAssignments([userId], req.project._id);
+            if (conflictError) {
+                return res.status(400).json({ success: false, message: conflictError });
+            }
+        }
 
         // Handle existing membership (active or soft-deleted)
         const existingMembership = await ProjectMembership.findOne({ projectId: req.project._id, userId });

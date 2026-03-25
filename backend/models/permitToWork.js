@@ -10,7 +10,7 @@ const permitToWorkSchema = new mongoose.Schema(
         },
         taskId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "tasks",
+            ref: "subtasks",
             required: true,
             index: true
         },

@@ -17,9 +17,15 @@ const statusColors = {
 };
 
 const SETasks = () => {
-    const { assignedTasks, createSubtask, requestMainTaskCompletion } = useSEContext();
+    const { assignedTasks, createSubtask, requestMainTaskCompletion, createPTW } = useSEContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeParentTask, setActiveParentTask] = useState(null);
+
+    const [isPtwModalOpen, setIsPtwModalOpen] = useState(false);
+    const [activeSubtask, setActiveSubtask] = useState(null);
+    const [ptwFormData, setPtwFormData] = useState({
+        permitType: 'Hot Work', validUntil: '', notes: ''
+    });
 
     const [formData, setFormData] = useState({
         name: '', description: '', assignedWorkers: [],
@@ -46,9 +52,25 @@ const SETasks = () => {
         setActiveParentTask(null);
     };
 
+    const openPtwModal = (subtask) => {
+        setActiveSubtask(subtask);
+        setPtwFormData({ permitType: 'Hot Work', validUntil: '', notes: '' });
+        setIsPtwModalOpen(true);
+    };
+
+    const closePtwModal = () => {
+        setIsPtwModalOpen(false);
+        setActiveSubtask(null);
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handlePtwChange = (e) => {
+        const { name, value } = e.target;
+        setPtwFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const handleMultiSelectChange = (e) => {
@@ -65,6 +87,17 @@ const SETasks = () => {
         } catch (error) {
             // Error is handled in context
             console.error("Delegation failed");
+        }
+    };
+
+    const handlePtwSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await createPTW(activeSubtask.projectId, { ...ptwFormData, taskId: activeSubtask.id });
+            closePtwModal();
+            alert("Permit to Work requested successfully.");
+        } catch (error) {
+            console.error(error);
         }
     };
 
@@ -141,9 +174,25 @@ const SETasks = () => {
                                                 </div>
                                                 <div className="flex items-center justify-between text-xs text-gray-500 mt-3 pt-2 border-t border-gray-200">
                                                     <span className="truncate max-w-[200px]">Workers: {sub.assignedWorkers?.map(w => w.name).join(', ') || 'Unassigned'}</span>
-                                                    {sub.completionRequested && !sub.completionApprovedAt && (
-                                                        <span className="text-orange-600 font-medium whitespace-nowrap">Needs Your Approval</span>
-                                                    )}
+                                                    <div className="flex gap-2 items-center">
+                                                        {sub.completionRequested && !sub.completionApprovedAt && (
+                                                            <span className="text-orange-600 font-medium whitespace-nowrap">Needs Your Approval</span>
+                                                        )}
+                                                        {sub.ptw ? (
+                                                            <span className={`text-xs font-semibold px-2.5 py-1 rounded border whitespace-nowrap ${
+                                                                sub.ptw.status === 'Approved' ? 'bg-green-100 text-green-800 border-green-300' :
+                                                                sub.ptw.status === 'Denied' ? 'bg-red-100 text-red-800 border-red-300' :
+                                                                sub.ptw.status === 'Revoked' ? 'bg-gray-800 text-gray-100 border-gray-900' :
+                                                                'bg-yellow-100 text-yellow-800 border-yellow-300'
+                                                            }`}>
+                                                                PTW: {sub.ptw.status}
+                                                            </span>
+                                                        ) : (
+                                                            <button onClick={() => openPtwModal(sub)} className="text-blue-600 hover:text-blue-800 font-semibold bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded transition-colors text-xs whitespace-nowrap shadow-sm">
+                                                                + Request PTW
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
@@ -214,6 +263,51 @@ const SETasks = () => {
                         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end space-x-3">
                             <button type="button" onClick={closeModal} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium">Cancel</button>
                             <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-steel-blue text-white rounded hover:bg-steel-blue/90 font-medium">Deploy Subtask</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Request PTW Modal */}
+            {isPtwModalOpen && activeSubtask && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+                        <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
+                            <h3 className="text-lg font-semibold text-gray-800">Request Permit to Work</h3>
+                            <button onClick={closePtwModal} className="text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
+                        </div>
+                        <form onSubmit={handlePtwSubmit} className="p-6 space-y-4">
+                            <div className="bg-blue-50 text-blue-800 p-3 rounded text-sm mb-2 border border-blue-100">
+                                <span className="font-semibold">For Subtask:</span> {activeSubtask.name}
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Permit Type</label>
+                                <select 
+                                    name="permitType" value={ptwFormData.permitType} onChange={handlePtwChange} 
+                                    className="w-full border border-gray-300 rounded px-3 py-2" required
+                                >
+                                    <option value="Hot Work">Hot Work</option>
+                                    <option value="Confined Space">Confined Space</option>
+                                    <option value="Working at Heights">Working at Heights</option>
+                                    <option value="Excavation">Excavation</option>
+                                    <option value="General">General</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Valid Until</label>
+                                <input type="datetime-local" name="validUntil" value={ptwFormData.validUntil} onChange={handlePtwChange} required className="w-full border border-gray-300 rounded px-3 py-2" />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Notes / Description of Work</label>
+                                <textarea name="notes" value={ptwFormData.notes} onChange={handlePtwChange} rows="3" required className="w-full border border-gray-300 rounded px-3 py-2 whitespace-pre-wrap" placeholder="Describe the safety precautions and work scope..." />
+                            </div>
+                        </form>
+                        <div className="px-6 py-4 border-t bg-gray-50 flex justify-end space-x-3">
+                            <button type="button" onClick={closePtwModal} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium">Cancel</button>
+                            <button type="button" onClick={handlePtwSubmit} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition">Submit Request</button>
                         </div>
                     </div>
                 </div>

@@ -41,9 +41,9 @@ export const createPTW = async (req, res) => {
         const data = { ...req.body, projectId: req.project._id, requestedBy: req.user._id };
         
         if (data.taskId) {
-            const Task = (await import("../models/task.js")).default;
-            const taskExists = await Task.exists({ _id: data.taskId, projectId: req.project._id });
-            if (!taskExists) return res.status(400).json({ success: false, message: "Task does not belong to this project" });
+            const Subtask = (await import("../models/subtask.js")).default;
+            const subtaskExists = await Subtask.exists({ _id: data.taskId, projectId: req.project._id });
+            if (!subtaskExists) return res.status(400).json({ success: false, message: "Subtask does not belong to this project" });
         }
         const payload = {
             ...data,
@@ -66,6 +66,10 @@ export const updatePTW = async (req, res) => {
 
         // If transitioning to Approved or Denied
         if (req.body.status && req.body.status !== ptw.status) {
+            if (req.body.status === "Denied" && (!req.body.notes || req.body.notes.trim() === "")) {
+                return res.status(400).json({ success: false, message: "A reason note is required when denying a PTW" });
+            }
+
             if (["Approved", "Denied", "Revoked"].includes(req.body.status)) {
                 req.body.approvedBy = req.user._id;
                 req.body.approvedAt = new Date();

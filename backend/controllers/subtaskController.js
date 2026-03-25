@@ -73,6 +73,12 @@ export const requestSubtaskCompletion = async (req, res) => {
             return res.status(404).json({ success: false, message: "Subtask not found" });
         }
 
+        const PermitToWork = (await import("../models/permitToWork.js")).default;
+        const deniedPtw = await PermitToWork.findOne({ taskId: subtaskId, status: "Denied" });
+        if (deniedPtw) {
+            return res.status(403).json({ success: false, message: "Cannot request completion: The Permit to Work for this subtask was denied by the Safety Officer." });
+        }
+
         subtask.completionRequested = true;
         subtask.completionRequestedAt = new Date();
         subtask.completionRequestedBy = req.user._id;

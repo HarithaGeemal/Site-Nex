@@ -19,7 +19,8 @@ const Projects = () => {
         name: '', location: '', startDate: '', estimatedEndDate: '',
         budget: '', status: 'Planning', plannedBudget: '',
         clientName: '', projectCode: '', description: '',
-        assignedSiteEngineers: [], assignedStoreKeepers: []
+        assignedSiteEngineers: [], assignedStoreKeepers: [],
+        assignedSafetyOfficers: []
     });
 
     // Stats derived from dummy data
@@ -44,12 +45,13 @@ const Projects = () => {
             setFormData({
                 ...project,
                 assignedSiteEngineers: project.assignedSiteEngineers || [],
-                assignedStoreKeepers: project.assignedStoreKeepers || []
+                assignedStoreKeepers: project.assignedStoreKeepers || [],
+                assignedSafetyOfficers: project.assignedSafetyOfficers || []
             }); 
         }
         else {
             setCurrentProject(null);
-            setFormData({ name: '', location: '', startDate: '', estimatedEndDate: '', budget: '', status: 'Planning', plannedBudget: '', clientName: '', projectCode: '', description: '', assignedSiteEngineers: [], assignedStoreKeepers: [] });
+            setFormData({ name: '', location: '', startDate: '', estimatedEndDate: '', budget: '', status: 'Planning', plannedBudget: '', clientName: '', projectCode: '', description: '', assignedSiteEngineers: [], assignedStoreKeepers: [], assignedSafetyOfficers: [] });
         }
         setIsModalOpen(true);
     };
@@ -69,6 +71,11 @@ const Projects = () => {
     const handleSKChange = (e) => {
         const value = Array.from(e.target.selectedOptions, option => option.value);
         setFormData(prev => ({ ...prev, assignedStoreKeepers: value }));
+    };
+
+    const handleSOChange = (e) => {
+        const value = Array.from(e.target.selectedOptions, option => option.value);
+        setFormData(prev => ({ ...prev, assignedSafetyOfficers: value }));
     };
 
     const handleSubmit = (e) => {
@@ -248,8 +255,8 @@ const Projects = () => {
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label><input type="text" name="clientName" value={formData.clientName || ''} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" placeholder="Optional" /></div>
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Project Code</label><input type="text" name="projectCode" value={formData.projectCode || ''} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" placeholder="Optional" /></div>
                                 
-                                <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4 mt-2">
-                                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Site Engineers (Hold Ctrl/Cmd)</label>
+                                <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4 mt-2">
+                                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Site Engineers</label>
                                         <select 
                                             name="assignedSiteEngineers" multiple value={formData.assignedSiteEngineers} onChange={handleSEChange} 
                                             className="w-full border border-gray-300 rounded px-3 py-2 h-24 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" 
@@ -259,9 +266,21 @@ const Projects = () => {
                                                 <option key={`${u.id}-${i}`} value={String(u.id)}>{u.name} — {u.status}</option>
                                             ))}
                                         </select>
-                                        {!!currentProject && <span className="text-xs text-orange-500">Assignments can currently only be set during creation.</span>}
+                                        {!!currentProject && <span className="text-xs text-orange-500">Assignments set at creation.</span>}
                                     </div>
-                                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Store Keepers (Hold Ctrl/Cmd)</label>
+                                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Safety Officers</label>
+                                        <select 
+                                            name="assignedSafetyOfficers" multiple value={formData.assignedSafetyOfficers} onChange={handleSOChange} 
+                                            className="w-full border border-gray-300 rounded px-3 py-2 h-24 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" 
+                                            disabled={!!currentProject}
+                                        >
+                                            {availableUsers?.filter(u => u.role === 'SAFETY_OFFICER').map((u, i) => (
+                                                <option key={`${u.id}-${i}`} value={String(u.id)}>{u.name} — {u.status}</option>
+                                            ))}
+                                        </select>
+                                        {!!currentProject && <span className="text-xs text-orange-500">Assignments set at creation.</span>}
+                                    </div>
+                                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Store Keepers</label>
                                         <select 
                                             name="assignedStoreKeepers" multiple value={formData.assignedStoreKeepers} onChange={handleSKChange} 
                                             className="w-full border border-gray-300 rounded px-3 py-2 h-24 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" 
@@ -271,7 +290,7 @@ const Projects = () => {
                                                 <option key={`${u.id}-${i}`} value={String(u.id)}>{u.name} — {u.status}</option>
                                             ))}
                                         </select>
-                                        {!!currentProject && <span className="text-xs text-orange-500">Assignments can currently only be set during creation.</span>}
+                                        {!!currentProject && <span className="text-xs text-orange-500">Assignments set at creation.</span>}
                                     </div>
                                 </div>
                             </div>

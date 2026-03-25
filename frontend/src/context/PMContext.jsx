@@ -200,6 +200,7 @@ export const PMProvider = (props) => {
                 plannedBudget: parseFloat(project.plannedBudget) || 0,
                 assignedSiteEngineers: project.assignedSiteEngineers || [],
                 assignedStoreKeepers: project.assignedStoreKeepers || [],
+                assignedSafetyOfficers: project.assignedSafetyOfficers || [],
             };
             const { data } = await axiosClient.post('/projects', payload);
             if (data.success) await fetchProjects();

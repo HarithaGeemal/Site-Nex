@@ -91,7 +91,18 @@ export const getSEAssignedTasks = async (req, res) => {
         .populate("assignedWorkers", "name trade")
         .sort({ startDate: 1 });
 
-        const tasks = [...mainTasks, ...subTasks];
+        const PermitToWork = (await import("../models/permitToWork.js")).default;
+        const ptws = await PermitToWork.find({ taskId: { $in: subTasks.map(s => s._id) } });
+
+        const subTasksWithPTWs = subTasks.map(st => {
+            const ptw = ptws.find(p => p.taskId.toString() === st._id.toString());
+            return {
+                ...st.toObject(),
+                ptw: ptw || null
+            };
+        });
+
+        const tasks = [...mainTasks, ...subTasksWithPTWs];
 
         return res.status(200).json({ success: true, tasks });
     } catch (error) {

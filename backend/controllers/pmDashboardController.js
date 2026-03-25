@@ -19,7 +19,7 @@ const getUserProjectIds = async (userId) => {
 // @access  Private
 export const getAvailableUsers = async (req, res) => {
     try {
-        const users = await User.find({ userRole: { $in: ["SITE_ENGINEER", "STORE_KEEPER"] }, isActive: true })
+        const users = await User.find({ userRole: { $in: ["SITE_ENGINEER", "STORE_KEEPER", "SAFETY_OFFICER"] }, isActive: true })
             .select("name email userRole");
         
         const userStatuses = await Promise.all(users.map(async (u) => {
