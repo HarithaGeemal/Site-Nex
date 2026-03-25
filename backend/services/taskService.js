@@ -126,6 +126,16 @@ class TaskService {
         if (task.status === "Completed") throw new Error("Task is already completed");
         if (task.completionRequested) throw new Error("Task completion has already been requested");
 
+        const openIssuesCount = await Issue.countDocuments({
+            taskId: task._id,
+            status: { $nin: ["Resolved", "Closed"] },
+            priority: { $in: ["High", "Critical"] }
+        });
+
+        if (openIssuesCount > 0) {
+            throw new Error(`Cannot request completion. There are ${openIssuesCount} High/Critical open issues blocking this task. Resolve them first.`);
+        }
+
         task.completionRequested = true;
         task.completionRequestedBy = userId;
         task.completionRequestedAt = new Date();
@@ -146,14 +156,15 @@ class TaskService {
         if (task.status === "Completed") throw new Error("Task is already completed");
         if (!task.completionRequested) throw new Error("Task completion was not requested");
 
-        // Check for open issues
+        // Check for open high-priority issues blocking completion
         const openIssuesCount = await Issue.countDocuments({
             taskId: task._id,
-            status: { $nin: ["Resolved", "Closed"] }
+            status: { $nin: ["Resolved", "Closed"] },
+            priority: { $in: ["High", "Critical"] }
         });
 
         if (openIssuesCount > 0) {
-            throw new Error(`Cannot approve completion. There are ${openIssuesCount} open issues blocking this task. Resolve them first.`);
+            throw new Error(`Cannot approve completion. There are ${openIssuesCount} High/Critical open issues blocking this task. Resolve them first.`);
         }
 
         // Clear requested state

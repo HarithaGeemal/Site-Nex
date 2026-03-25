@@ -31,7 +31,7 @@ const Issues = () => {
 
     const [formData, setFormData] = useState({
         projectId: '', title: '', description: '', reportedBy: '',
-        reportedDate: '', status: 'Open', priority: 'Medium', attachments: []
+        reportedDate: '', status: 'Open', priority: 'Medium', type: 'Other', attachments: []
     });
 
     // Stats from dummy data
@@ -54,7 +54,7 @@ const Issues = () => {
 
     const openModal = (issue = null) => {
         if (issue) { setCurrentIssue(issue); setFormData(issue); }
-        else { setCurrentIssue(null); setFormData({ projectId: projects[0]?.id || '', title: '', description: '', reportedBy: '', reportedDate: new Date().toISOString().split('T')[0], status: 'Open', priority: 'Medium', attachments: [] }); }
+        else { setCurrentIssue(null); setFormData({ projectId: projects[0]?.id || '', title: '', description: '', reportedBy: '', reportedDate: new Date().toISOString().split('T')[0], status: 'Open', priority: 'Medium', type: 'Other', attachments: [] }); }
         setIsModalOpen(true);
     };
 
@@ -67,6 +67,12 @@ const Issues = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        // Validation 6: Description must be meaningful
+        if (formData.description && formData.description.trim().length < 15) {
+            return alert('Validation Error: Description must be at least 15 characters long to provide sufficient context.');
+        }
+
         if (currentIssue) updateIssue(currentIssue.id, formData);
         else addIssue(formData);
         closeModal();
@@ -200,6 +206,15 @@ const Issues = () => {
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
                                     <select name="priority" value={formData.priority} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2">
                                         <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option><option value="Critical">Critical</option>
+                                    </select>
+                                </div>
+                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                    <select name="type" value={formData.type} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2">
+                                        <option value="Defect">Defect</option>
+                                        <option value="Safety">Safety</option>
+                                        <option value="Material Shortage">Material Shortage</option>
+                                        <option value="Design Request">Design Request</option>
+                                        <option value="Other">Other</option>
                                     </select>
                                 </div>
                             </div>

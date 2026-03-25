@@ -35,7 +35,7 @@ const formatProjectDates = (p) => {
 // @access  Admin
 export const createProject = async (req, res) => {
     try {
-        const { name, location, startDate, endDate, description, budget, status, progress, clientName, projectCode, plannedBudget, actualBudgetUsed } = req.body;
+        const { name, location, startDate, endDate, description, budget, status, progress, clientName, projectCode, plannedBudget, actualBudgetUsed, assignedSiteEngineers, assignedStoreKeepers } = req.body;
 
         const project = await Project.create({
             name,
@@ -60,7 +60,28 @@ export const createProject = async (req, res) => {
             isPrimary: true
         });
 
-        return res.status(201).json({ success: true, message: "Project created successfully", project: formatProjectDates(project) });
+        // Assign Site Engineers
+        if (assignedSiteEngineers && Array.isArray(assignedSiteEngineers) && assignedSiteEngineers.length > 0) {
+            const seMemberships = assignedSiteEngineers.map(id => ({
+                projectId: project._id,
+                userId: id,
+                role: "SITE_ENGINEER"
+            }));
+            await ProjectMembership.insertMany(seMemberships);
+        }
+
+        // Assign Store Keepers
+        if (assignedStoreKeepers && Array.isArray(assignedStoreKeepers) && assignedStoreKeepers.length > 0) {
+            const skMemberships = assignedStoreKeepers.map(id => ({
+                projectId: project._id,
+                userId: id,
+                role: "STORE_KEEPER"
+            }));
+            await ProjectMembership.insertMany(skMemberships);
+        }
+
+        const projectData = formatProjectDates(project);
+        return res.status(201).json({ success: true, message: "Project created successfully", project: projectData });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }
@@ -188,14 +209,6 @@ export const addMember = async (req, res) => {
             await existingMembership.save();
 
             return res.status(200).json({ success: true, message: "Member re-added successfully" });
-        }
-
-        // Prevent multiple isPrimary members for the same role
-        if (isPrimary) {
-            const hasExistingPrimary = await ProjectMembership.findOne({ projectId: req.project._id, role, isPrimary: true, removedAt: null });
-            if (hasExistingPrimary) {
-                return res.status(409).json({ success: false, message: `There is already a primary ${role} on this project` });
-            }
         }
 
         await ProjectMembership.create({

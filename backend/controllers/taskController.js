@@ -16,7 +16,7 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 // @access  Admin / Project Manager
 export const createTask = async (req, res) => {
     try {
-        const { name, description, status, priority, startDate, endDate, percentComplete, dependencyTaskIds, estimatedHours, actualHours } = req.body;
+        const { name, description, status, priority, startDate, endDate, percentComplete, dependencyTaskIds, estimatedHours, actualHours, assignedWorkers, assignedSiteEngineers, assignedStoreKeepers, parentTaskId } = req.body;
         const projectId = req.project._id;
 
         if (new Date(startDate) >= new Date(endDate)) {
@@ -44,8 +44,33 @@ export const createTask = async (req, res) => {
         // Delegate to TaskService for DFS Graph Cycle validation
         await TaskService.validateDependencies(projectId, null, dependencyTaskIds);
 
+        // Subtask Hierarchical Validation
+        if (parentTaskId) {
+            const parentTask = await Task.findById(parentTaskId);
+            if (!parentTask) {
+                return res.status(404).json({ success: false, message: "Parent task not found" });
+            }
+            if (parentTask.projectId.toString() !== projectId.toString()) {
+                return res.status(400).json({ success: false, message: "Subtasks must belong to the same project as their parent task." });
+            }
+            
+            // Subtask workers must be purely a subset of the parent task's workers
+            if (assignedWorkers && assignedWorkers.length > 0) {
+                const parentWorkerIds = parentTask.assignedWorkers.map(w => w.toString());
+                const invalidWorkers = assignedWorkers.filter(id => !parentWorkerIds.includes(id.toString()));
+                if (invalidWorkers.length > 0) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Subtask workers must be strictly selected from the parent task's assigned workers.",
+                        invalidWorkers
+                    });
+                }
+            }
+        }
+
         const task = await Task.create({
             projectId,
+            parentTaskId: parentTaskId || null,
             name,
             description,
             status,
@@ -56,6 +81,9 @@ export const createTask = async (req, res) => {
             dependencyTaskIds: dependencyTaskIds || [],
             estimatedHours,
             actualHours,
+            assignedWorkers: assignedWorkers || [],
+            assignedSiteEngineers: assignedSiteEngineers || [],
+            assignedStoreKeepers: assignedStoreKeepers || [],
         });
 
         // Sync project progress asynchronously so we don't block the response (Point H)
@@ -105,7 +133,7 @@ export const getTaskById = async (req, res) => {
 // @access  Admin / Project Manager / Site Engineer
 export const updateTask = async (req, res) => {
     try {
-        const { name, description, status, priority, startDate, endDate, percentComplete, dependencyTaskIds, estimatedHours, actualHours } = req.body;
+        const { name, description, status, priority, startDate, endDate, percentComplete, dependencyTaskIds, estimatedHours, actualHours, assignedWorkers, assignedSiteEngineers, assignedStoreKeepers } = req.body;
 
         // Validate date bounds against the project if modifying dates
         if (startDate || endDate) {
@@ -125,6 +153,22 @@ export const updateTask = async (req, res) => {
             await TaskService.validateDependencies(req.project._id, req.task._id, dependencyTaskIds);
         }
 
+        // Parent Worker Constraint Validation
+        if (req.task.parentTaskId && assignedWorkers !== undefined && assignedWorkers.length > 0) {
+            const parentTask = await Task.findById(req.task.parentTaskId);
+            if (parentTask) {
+                const parentWorkerIds = parentTask.assignedWorkers.map(w => w.toString());
+                const invalidWorkers = assignedWorkers.filter(id => !parentWorkerIds.includes(id.toString()));
+                if (invalidWorkers.length > 0) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Subtask workers must be strictly selected from the parent task's assigned workers.",
+                        invalidWorkers
+                    });
+                }
+            }
+        }
+
         // Prevent direct completion bypass
         const isCurrentlyCompleted = req.task.status === "Completed" || req.task.percentComplete === 100;
         const intendsToComplete = status === "Completed" || percentComplete === 100;
@@ -133,6 +177,16 @@ export const updateTask = async (req, res) => {
                 success: false,
                 message: "Direct completion is not allowed. Please use the request and approve completion workflow.",
             });
+        }
+
+        // Prevent updating completion progress if task is Blocked (Stop/Hold Safety Notice)
+        if (req.task.status === "Blocked") {
+            if (percentComplete !== undefined && percentComplete !== req.task.percentComplete) {
+                return res.status(422).json({
+                    success: false,
+                    message: "Cannot update progress. This task is currently blocked due to a safety Stop/Hold notice.",
+                });
+            }
         }
 
         // Prevent starting task if blocked by Safety
@@ -164,18 +218,22 @@ export const updateTask = async (req, res) => {
         if (dependencyTaskIds !== undefined) req.task.dependencyTaskIds = dependencyTaskIds;
         if (estimatedHours !== undefined) req.task.estimatedHours = estimatedHours;
         if (actualHours !== undefined) req.task.actualHours = actualHours;
+        if (assignedWorkers !== undefined) req.task.assignedWorkers = assignedWorkers;
+        if (assignedSiteEngineers !== undefined) req.task.assignedSiteEngineers = assignedSiteEngineers;
+        if (assignedStoreKeepers !== undefined) req.task.assignedStoreKeepers = assignedStoreKeepers;
 
         // If trying to complete task, ensure no open issues exist
         if (req.task.status === "Completed" || req.task.percentComplete === 100) {
             const openIssuesCount = await Issue.countDocuments({
                 taskId: req.task._id,
-                status: { $nin: ["Resolved", "Closed"] }
+                status: { $nin: ["Resolved", "Closed"] },
+                priority: { $in: ["High", "Critical"] }
             });
 
             if (openIssuesCount > 0) {
                 return res.status(422).json({
                     success: false,
-                    message: `Cannot complete task. There are ${openIssuesCount} open issues blocking this task. Resolve them first.`
+                    message: `Cannot complete task. There are ${openIssuesCount} High/Critical open issues blocking this task. Resolve them first.`
                 });
             }
             req.task.status = "Completed";
@@ -217,10 +275,13 @@ export const cancelTask = async (req, res) => {
             await DeletionLog.insertMany(logs);
         }
 
-        // Hard deletes
-        await TaskAssignment.deleteMany({ taskId: req.task._id });
-        await Issue.deleteMany({ taskId: req.task._id });
-        await req.task.deleteOne();
+        // Hard deletes (cascade to subtasks)
+        const subtasks = await Task.find({ parentTaskId: req.task._id });
+        const cascadeIds = [req.task._id, ...subtasks.map(t => t._id)];
+
+        await TaskAssignment.deleteMany({ taskId: { $in: cascadeIds } });
+        await Issue.deleteMany({ taskId: { $in: cascadeIds } });
+        await Task.deleteMany({ _id: { $in: cascadeIds } });
 
         // Sync project progress asynchronously
         EventService.emit("project:syncProgress", req.task.projectId);
@@ -277,6 +338,20 @@ export const requestCompletion = async (req, res) => {
 export const approveCompletion = async (req, res) => {
     try {
         const { note } = req.body;
+        
+        // Strict Authorization: SEs can approve Subtasks but NOT Main Tasks
+        if (!req.task.parentTaskId) {
+            // It's a Main Task
+            if (req.member.role !== "PROJECT_MANAGER" && req.member.role !== "OWNER") {
+                return res.status(403).json({ success: false, message: "Only Project Managers can approve Main Tasks." });
+            }
+        } else {
+            // It's a Subtask
+            if (req.member.role !== "SITE_ENGINEER" && req.member.role !== "PROJECT_MANAGER" && req.member.role !== "OWNER") {
+                return res.status(403).json({ success: false, message: "Unauthorized to approve subtasks." });
+            }
+        }
+
         const task = await TaskService.approveCompletion(req.task._id, req.user._id, note);
 
         // Complete cascade (auto reschedule & event sync)

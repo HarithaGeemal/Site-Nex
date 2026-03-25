@@ -74,10 +74,13 @@ export const createProjectSchema = z.object({
     endDate: z.string(),
     description: z.string().optional(),
     budget: z.number().min(0).optional(),
+    status: z.enum(["Planning", "Active", "On Hold", "Completed"]).optional(),
     clientName: z.string().optional(),
     projectCode: z.string().optional(),
     plannedBudget: z.number().min(0).optional(),
     actualBudgetUsed: z.number().min(0).optional(),
+    assignedSiteEngineers: z.array(z.string()).optional(),
+    assignedStoreKeepers: z.array(z.string()).optional(),
 });
 
 export const updateProjectSchema = createProjectSchema.partial();
@@ -102,6 +105,10 @@ export const createTaskSchema = z.object({
     dependencyTaskIds: z.array(objectId).optional(),
     estimatedHours: z.number().min(0).optional(),
     actualHours: z.number().min(0).optional(),
+    assignedWorkers: z.array(z.string()).optional(),
+    assignedSiteEngineers: z.array(z.string()).optional(),
+    assignedStoreKeepers: z.array(z.string()).optional(),
+    parentTaskId: z.string().optional().nullable(),
 });
 
 export const updateTaskSchema = createTaskSchema.partial();
@@ -378,8 +385,11 @@ export const checkoutIdParamSchema = z.object({
 // ----------------------------------------
 export const createMaterialRequestSchema = z.object({
     taskId: objectId,
-    materialItemId: objectId,
-    requestedQuantity: z.number().positive(),
+    items: z.array(z.object({
+        requestType: z.enum(["Material", "Tool"]).optional(),
+        itemId: objectId,
+        quantityRequested: z.number().positive(),
+    })).min(1),
     notes: z.string().optional()
 });
 

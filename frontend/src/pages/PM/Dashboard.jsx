@@ -1,13 +1,14 @@
 import React from 'react';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-import { useUser } from '@clerk/clerk-react';
-import { projects, tasks, issues, workers, dailyReports } from '../../assets/dummyData';
+import { useAuth } from '../../context/AuthContext';
+import { usePMContext } from '../../context/PMContext';
 
 const Dashboard = () => {
-    const { user, isLoaded } = useUser();
+    const { user } = useAuth();
+    const { projects, tasks, issues, workers, dailyReports } = usePMContext();
 
-    // Basic stats calculation based on dummy data
+    // Basic stats calculation from live context data
     const activeProjectsCount = projects.filter(p => p.status === 'In Progress').length;
     const openIssuesCount = issues.filter(i => i.status === 'Open').length;
     const activeWorkersCount = workers.filter(w => w.status === 'Active').length;
@@ -21,8 +22,8 @@ const Dashboard = () => {
     // Helper to resolve a project name from its ID
     const getProjectName = (id) => projects.find(p => p.id === id)?.name || id;
 
-    // Clerk user's first name for the welcome greeting
-    const greetName = isLoaded && user ? (user.firstName || user.fullName?.split(' ')[0] || 'there') : '...';
+    // User's first name for the welcome greeting
+    const greetName = user?.name?.split(' ')[0] || 'there';
 
     return (
         <div className="p-6 bg-concrete-light min-h-full">
@@ -58,6 +59,9 @@ const Dashboard = () => {
                             <button className="text-sm text-steel-blue hover:underline font-medium">View All</button>
                         </div>
                         <div className="divide-y divide-concrete-light">
+                            {projects.length === 0 && (
+                                <div className="p-6 text-center text-concrete">No projects yet. Create your first project!</div>
+                            )}
                             {projects.map(project => (
                                 <div key={project.id} className="p-6 hover:bg-gray-50/50 transition-colors flex items-center">
                                     <div className="flex-1">
@@ -90,6 +94,9 @@ const Dashboard = () => {
                     <div className="bg-white rounded-xl shadow-sm border border-concrete-light p-6">
                         <h2 className="text-lg font-bold text-steel-blue mb-4">Recent Daily Reports</h2>
                         <div className="space-y-4">
+                            {dailyReports.length === 0 && (
+                                <div className="text-center text-concrete py-4">No reports yet.</div>
+                            )}
                             {dailyReports.slice(0, 2).map(report => (
                                 <div key={report.id} className="border border-concrete-light rounded-lg p-4 flex gap-4 items-start hover:border-steel-blue/30 transition-colors">
                                     <div className="bg-blue-50 text-steel-blue p-3 rounded-lg text-center min-w-[60px]">
@@ -118,14 +125,16 @@ const Dashboard = () => {
                                 value={overallHealth}
                                 text={`${overallHealth}%`}
                                 styles={buildStyles({
-                                    pathColor: '#1E3A5F', // steel-blue
+                                    pathColor: '#1E3A5F',
                                     textColor: '#1E3A5F',
-                                    trailColor: '#E5E7EB', // concrete-light
+                                    trailColor: '#E5E7EB',
                                     textSize: '24px',
                                 })}
                             />
                         </div>
-                        <p className="text-sm text-concrete font-medium">Projects are running on schedule</p>
+                        <p className="text-sm text-concrete font-medium">
+                            {projects.length === 0 ? 'No projects to track' : 'Projects are running on schedule'}
+                        </p>
                     </div>
 
                     {/* Critical Issues */}
@@ -135,13 +144,16 @@ const Dashboard = () => {
                             <span className="bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded-full">{issues.filter(i => i.priority === 'Critical' || i.priority === 'High').length}</span>
                         </div>
                         <div className="space-y-4">
+                            {issues.filter(i => i.status === 'Open').length === 0 && (
+                                <div className="text-center text-concrete py-4">No open issues.</div>
+                            )}
                             {issues.filter(i => i.status === 'Open').slice(0, 3).map(issue => (
                                 <div key={issue.id} className="border-l-4 border-amber bg-gray-50 p-3 rounded-r-md">
                                     <h4 className="font-bold text-sm text-gray-800">{issue.title}</h4>
                                     <p className="text-xs text-concrete mt-1 line-clamp-2">{issue.description}</p>
                                     <div className="mt-2 text-xs font-medium text-amber flex justify-between">
-                                        <span>{issue.projectId}</span>
-                                        <span>{new Date(issue.reportedDate).toLocaleDateString()}</span>
+                                        <span>{getProjectName(issue.projectId)}</span>
+                                        <span>{issue.reportedDate}</span>
                                     </div>
                                 </div>
                             ))}
@@ -157,7 +169,7 @@ const Dashboard = () => {
     );
 };
 
-// Simple Icon Components for Stats Cards (could be grouped elsewhere)
+// Simple Icon Components for Stats Cards
 const StatCard = ({ title, value, icon, color }) => (
     <div className="bg-white rounded-xl shadow-sm border border-concrete-light p-6 flex items-center gap-4">
         <div className={`p-3 rounded-full bg-gray-50 ${color}`}>

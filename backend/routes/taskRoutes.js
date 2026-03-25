@@ -39,8 +39,8 @@ router.put("/:taskId", validateRequest({ body: updateTaskSchema }), authorizePro
 router.patch("/:taskId/cancel", authorizeProjectAccess("PROJECT_MANAGER"), cancelTask);
 
 // Completion Workflow
-router.patch("/:taskId/request-completion", validateRequest({ body: requestTaskCompletionSchema }), authorizeProjectAccess("SITE_ENGINEER"), requestCompletion);
-router.patch("/:taskId/approve-completion", validateRequest({ body: approveTaskCompletionSchema }), authorizeProjectAccess("PROJECT_MANAGER"), approveCompletion);
+router.patch("/:taskId/request-completion", validateRequest({ body: requestTaskCompletionSchema }), authorizeProjectAccess("ASSISTANT_ENGINEER"), requestCompletion);
+router.patch("/:taskId/approve-completion", validateRequest({ body: approveTaskCompletionSchema }), authorizeProjectAccess("SITE_ENGINEER"), approveCompletion);
 
 // Progress Notes
 router.post("/:taskId/notes", validateRequest({ body: addProgressNoteSchema }), authorizeProjectAccess("SITE_ENGINEER"), addProgressNote);

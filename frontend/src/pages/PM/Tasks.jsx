@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePMContext } from '../../context/PMContext';
+import useAxios from '../../hooks/useAxios';
 
 const priorityColors = {
     Critical: 'bg-red-100 text-red-800 border-red-300',
@@ -17,15 +18,37 @@ const statusColors = {
 
 const Tasks = () => {
     const { tasks, addTask, updateTask, deleteTask, projects, workers } = usePMContext();
+    const axiosClient = useAxios();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [taskToDelete, setTaskToDelete] = useState(null);
     const [currentTask, setCurrentTask] = useState(null);
     const [filterStatus, setFilterStatus] = useState('All');
     const [filterProject, setFilterProject] = useState('All');
+    const [projectMembers, setProjectMembers] = useState([]);
 
     const [formData, setFormData] = useState({
         projectId: '', name: '', description: '', assignedTo: [],
+        assignedSiteEngineers: [], assignedStoreKeepers: [],
         startDate: '', endDate: '', status: 'To Do', priority: 'Medium'
     });
+
+    useEffect(() => {
+        const fetchMembers = async () => {
+            if (!formData.projectId) {
+                setProjectMembers([]);
+                return;
+            }
+            try {
+                const { data } = await axiosClient.get(`/projects/${formData.projectId}`);
+                if (data.success && data.project.members) {
+                    setProjectMembers(data.project.members);
+                }
+            } catch (error) {
+                console.error("Error fetching project members:", error);
+            }
+        };
+        fetchMembers();
+    }, [formData.projectId, axiosClient]);
 
     // Stats from dummy data
     const stats = {
@@ -52,8 +75,22 @@ const Tasks = () => {
     });
 
     const openModal = (task = null) => {
-        if (task) { setCurrentTask(task); setFormData({ ...task, assignedTo: task.assignedTo || [] }); }
-        else { setCurrentTask(null); setFormData({ projectId: projects[0]?.id || '', name: '', description: '', assignedTo: [], startDate: '', endDate: '', status: 'To Do', priority: 'Medium' }); }
+        if (task) { 
+            setCurrentTask(task); 
+            setFormData({ 
+                ...task, 
+                assignedTo: task.assignedTo || [],
+                assignedSiteEngineers: task.assignedSiteEngineers || [],
+                assignedStoreKeepers: task.assignedStoreKeepers || []
+            }); 
+        } else { 
+            setCurrentTask(null); 
+            setFormData({ 
+                projectId: projects[0]?.id || '', name: '', description: '', 
+                assignedTo: [], assignedSiteEngineers: [], assignedStoreKeepers: [],
+                startDate: '', endDate: '', status: 'To Do', priority: 'Medium' 
+            }); 
+        }
         setIsModalOpen(true);
     };
 
@@ -61,7 +98,11 @@ const Tasks = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        if (name === 'projectId' && formData.projectId !== value) {
+            setFormData(prev => ({ ...prev, [name]: value, assignedTo: [], assignedSiteEngineers: [], assignedStoreKeepers: [] }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     const handleMultiSelectChange = (e) => {
@@ -69,15 +110,54 @@ const Tasks = () => {
         setFormData(prev => ({ ...prev, assignedTo: value }));
     };
 
+    const handleSEChange = (e) => {
+        const value = Array.from(e.target.selectedOptions, option => option.value);
+        setFormData(prev => ({ ...prev, assignedSiteEngineers: value }));
+    };
+
+    const handleSKChange = (e) => {
+        const value = Array.from(e.target.selectedOptions, option => option.value);
+        setFormData(prev => ({ ...prev, assignedStoreKeepers: value }));
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        // Validation
+        if (formData.assignedTo && formData.assignedTo.length > 0) {
+            const invalidWorkers = formData.assignedTo.some(workerId => {
+                const w = workers.find(work => work.id === workerId);
+                return w && w.projectId !== formData.projectId;
+            });
+            if (invalidWorkers) {
+                return alert('Validation Error: One or more assigned workers do not belong to the selected project.');
+            }
+        }
+
+        if (formData.name && formData.name.trim().length < 3) {
+            return alert('Validation Error: Task Name must be at least 3 characters long.');
+        }
+
+        if (formData.startDate && formData.endDate) {
+            if (new Date(formData.endDate) < new Date(formData.startDate)) {
+                return alert('Validation Error: End Date cannot be before the Start Date.');
+            }
+        }
+
         if (currentTask) updateTask(currentTask.id, formData);
         else addTask(formData);
         closeModal();
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this task?')) deleteTask(id);
+    const handleDeleteRequest = (id) => {
+        setTaskToDelete(id);
+    };
+    
+    const confirmDelete = () => {
+        if (taskToDelete) {
+            deleteTask(taskToDelete);
+            setTaskToDelete(null);
+        }
     };
 
     return (
@@ -160,7 +240,7 @@ const Tasks = () => {
 
                         <div className="mt-4 pt-4 border-t border-concrete-light flex justify-end space-x-3">
                             <button onClick={() => openModal(task)} className="text-steel-blue hover:text-steel-blue/80 text-sm font-medium">Edit</button>
-                            <button onClick={() => handleDelete(task.id)} className="text-red-500 hover:text-red-700 text-sm font-medium">Delete</button>
+                            <button onClick={() => handleDeleteRequest(task.id)} className="text-red-500 hover:text-red-700 text-sm font-medium">Delete</button>
                         </div>
                     </div>
                 ))}
@@ -202,15 +282,56 @@ const Tasks = () => {
                                 </div>
                             </div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea name="description" value={formData.description} onChange={handleChange} rows="2" required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
-                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Workers (Hold Ctrl/Cmd for multiple)</label>
-                                <select name="assignedTo" multiple value={formData.assignedTo} onChange={handleMultiSelectChange} className="w-full border border-gray-300 rounded px-3 py-2 h-24">
-                                    {workers.map(w => <option key={w.id} value={w.id}>{w.name} — {w.role} ({w.trade})</option>)}
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Workers</label>
+                                <select 
+                                    name="assignedTo" multiple value={formData.assignedTo} onChange={handleMultiSelectChange} 
+                                    className="w-full border border-gray-300 rounded px-3 py-2 h-20" disabled={!formData.projectId}
+                                >
+                                    {workers.filter(w => w.projectId === formData.projectId).map(w => <option key={w.id} value={w.id}>{w.name} — {w.trade}</option>)}
+                                </select>
+                                {!formData.projectId && <p className="text-xs text-red-500 mt-1">Select a project first.</p>}
+                            </div>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Site Engineers</label>
+                                <select 
+                                    name="assignedSiteEngineers" multiple value={formData.assignedSiteEngineers} onChange={handleSEChange} 
+                                    className="w-full border border-gray-300 rounded px-3 py-2 h-20" disabled={!formData.projectId}
+                                >
+                                    {projectMembers.filter(m => m.role === 'SITE_ENGINEER').map((m, i) => (
+                                        <option key={`${m.userId?._id}-${i}`} value={String(m.userId?._id)}>{m.userId?.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Store Keepers</label>
+                                <select 
+                                    name="assignedStoreKeepers" multiple value={formData.assignedStoreKeepers} onChange={handleSKChange} 
+                                    className="w-full border border-gray-300 rounded px-3 py-2 h-20" disabled={!formData.projectId}
+                                >
+                                    {projectMembers.filter(m => m.role === 'STORE_KEEPER').map((m, i) => (
+                                        <option key={`${m.userId?._id}-${i}`} value={String(m.userId?._id)}>{m.userId?.name}</option>
+                                    ))}
                                 </select>
                             </div>
                         </form>
                         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end space-x-3">
                             <button type="button" onClick={closeModal} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium">Cancel</button>
                             <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-steel-blue text-white rounded hover:bg-steel-blue/90 font-medium">Save Task</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Custom Delete Confirmation Modal */}
+            {taskToDelete && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in fade-in">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all p-6 text-center">
+                        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Task</h3>
+                        <p className="text-sm text-gray-500 mb-6">Are you sure you want to delete this task? This action cannot be undone.</p>
+                        <div className="flex justify-center space-x-3">
+                            <button onClick={() => setTaskToDelete(null)} className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium w-full">Cancel</button>
+                            <button onClick={confirmDelete} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium w-full">Delete</button>
                         </div>
                     </div>
                 </div>

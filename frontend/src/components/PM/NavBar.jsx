@@ -1,9 +1,9 @@
 import React from 'react';
-import { useUser, UserButton } from '@clerk/clerk-react';
+import { useAuth } from '../../context/AuthContext';
 import { usePMContext } from '../../context/PMContext';
 
 const NavBar = () => {
-    const { user, isLoaded } = useUser();
+    const { user } = useAuth();
     const { issues } = usePMContext();
 
     // Count open/urgent issues as "notifications"
@@ -11,10 +11,9 @@ const NavBar = () => {
         i => i.status === 'Open' || i.status === 'In Progress'
     ).length;
 
-    // Build display name from Clerk user
-    const fullName = isLoaded && user
-        ? (user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress || 'User')
-        : '...';
+    // Build display name from our user object
+    const fullName = user?.name || 'User';
+    const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
     return (
         <header className="bg-white border-b border-concrete-light sticky top-0 z-30 w-full flex items-center justify-between px-6 py-3">
@@ -60,17 +59,15 @@ const NavBar = () => {
                     )}
                 </button>
 
-                {/* User Profile — from Clerk */}
+                {/* User Profile */}
                 <div className="flex items-center gap-3 border-l border-concrete-light pl-6">
                     <div className="flex-col text-right hidden sm:flex">
                         <span className="text-sm font-semibold text-steel-blue block leading-tight">{fullName}</span>
-                        <span className="text-xs text-concrete block">Project Manager</span>
+                        <span className="text-xs text-concrete block">{user?.userRole?.replace('_', ' ') || 'User'}</span>
                     </div>
-                    <UserButton afterSignOut="/login" appearance={{
-                        elements: {
-                            userButtonAvatarBox: "w-10 h-10"
-                        }
-                    }} />
+                    <div className="w-10 h-10 rounded-full bg-steel-blue text-white flex items-center justify-center font-bold text-sm">
+                        {initials}
+                    </div>
                 </div>
             </div>
         </header>

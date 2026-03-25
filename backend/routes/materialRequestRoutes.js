@@ -3,7 +3,8 @@ import {
     getMaterialRequests,
     getMaterialRequestById,
     createMaterialRequest,
-    respondToMaterialRequest
+    respondToMaterialRequest,
+    addCommentToRequest
 } from "../controllers/materialRequestController.js";
 import { authorizeProjectAccess } from "../middlewares/rbacMiddleware.js";
 import { validateRequest } from "../middlewares/validateRequest.js";
@@ -31,6 +32,13 @@ router.route("/:requestId/respond")
         authorizeProjectAccess("STORE_KEEPER"), 
         validateRequest({ params: materialRequestIdParamSchema, body: respondMaterialRequestSchema }), 
         respondToMaterialRequest
+    );
+
+// Comments endpoint (SE and Store Keeper can comment)
+router.route("/:requestId/comments")
+    .post(
+        authorizeProjectAccess("SITE_ENGINEER"),
+        addCommentToRequest
     );
 
 export default router;

@@ -20,6 +20,10 @@ import toolRoutes from './routes/toolRoutes.js';
 import toolCheckoutRoutes from './routes/toolCheckoutRoutes.js';
 import materialRequestRoutes from './routes/materialRequestRoutes.js';
 import safetyDashboardRoutes from './routes/safetyDashboardRoutes.js';
+import pmDashboardRoutes from './routes/pmDashboardRoutes.js';
+import seDashboardRoutes from './routes/seDashboardRoutes.js';
+import workerRoutes from './routes/workerRoutes.js';
+
 import protect from './middlewares/authMiddleware.js';
 import { validateRequest } from './middlewares/validateRequest.js';
 import { loadProject } from './middlewares/rbacMiddleware.js';
@@ -66,6 +70,9 @@ app.use('/api/projects/:projectId/safety-notices', projectScopedMiddlewares, exp
 app.use('/api/projects/:projectId/ptws', projectScopedMiddlewares, express.json(), ptwRoutes);
 app.use('/api/projects/:projectId/safety-summary', projectScopedMiddlewares, express.json(), safetyDashboardRoutes);
 
+// Worker Management (project-scoped)
+app.use('/api/projects/:projectId/workers', projectScopedMiddlewares, express.json(), workerRoutes);
+
 // Store Keeper Ecosystem Mounts
 app.use('/api/projects/:projectId/tools', projectScopedMiddlewares, express.json(), toolRoutes);
 app.use('/api/projects/:projectId/checkouts', projectScopedMiddlewares, express.json(), toolCheckoutRoutes);
@@ -73,6 +80,15 @@ app.use('/api/projects/:projectId/material-requests', projectScopedMiddlewares, 
 
 // Global Material Catalog Routes for global material catalog endpoints (/api/materials/items)
 app.use('/api/materials', express.json(), materialCatalogRoutes);
+
+// Global PM & SE Aggregation endpoints
+app.use('/api/pm', pmDashboardRoutes);
+app.use('/api/se', seDashboardRoutes);
+
+app.get('/', (req, res) => {
+    res.send('SiteNex Backend is running!');
+});
+
 
 app.use((req, res) => {
     res.status(404).json({

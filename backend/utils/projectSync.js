@@ -30,13 +30,14 @@ export const syncProjectProgress = async (projectId) => {
             project.progress = 0;
         }
 
-        // 2. Determine Status
-        const openIssues = await Issue.countDocuments({
+        // 2. Determine Status - only High/Critical issues block project completion
+        const blockingIssuesCount = await Issue.countDocuments({
             projectId,
-            status: { $nin: ["Resolved", "Closed"] }
+            status: { $nin: ["Resolved", "Closed"] },
+            priority: { $in: ["High", "Critical"] }
         });
 
-        if (project.progress === 100 && openIssues === 0) {
+        if (project.progress === 100 && blockingIssuesCount === 0) {
             project.status = "Completed";
         } else if (openIssues > 0 && tasks.some(t => t.status === "On Hold")) {
             project.status = "On Hold";

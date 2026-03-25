@@ -4,7 +4,7 @@ const projectMembershipSchema = new mongoose.Schema(
     {
         projectId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "Project",
+            ref: "projects",
             required: true,
             index: true,
         },

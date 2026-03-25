@@ -23,8 +23,8 @@ import {
 
 const router = express.Router();
 
-// Only ADMIN maps globally
-router.post("/", protect, authorizeGlobalRole("ADMIN"), validateRequest({ body: createProjectSchema }), createProject);
+// Allow both ADMIN and PROJECT_MANAGER to globally create new projects
+router.post("/", protect, authorizeGlobalRole("ADMIN", "PROJECT_MANAGER"), validateRequest({ body: createProjectSchema }), createProject);
 
 router.get("/", protect, getAllProjects); // Controller handles membership filter
 
@@ -35,7 +35,7 @@ router.get("/:projectId", authorizeProjectAccess("STORE_KEEPER"), getProjectById
 router.get("/:projectId/dashboard", authorizeProjectAccess("STORE_KEEPER"), getProjectDashboard);
 router.get("/:projectId/gantt", authorizeProjectAccess("STORE_KEEPER"), getProjectGantt);
 router.put("/:projectId", validateRequest({ body: updateProjectSchema }), authorizeProjectAccess("PROJECT_MANAGER"), updateProject);
-router.delete("/:projectId", authorizeGlobalRole("ADMIN"), deleteProject);
+router.delete("/:projectId", authorizeGlobalRole("ADMIN", "PROJECT_MANAGER"), deleteProject);
 
 router.post("/:projectId/members", validateRequest({ body: addProjectMemberSchema }), authorizeProjectAccess("PROJECT_MANAGER"), addMember);
 router.delete("/:projectId/members/:userId", validateRequest({ params: userIdParamSchema }), authorizeProjectAccess("PROJECT_MANAGER"), removeMember);

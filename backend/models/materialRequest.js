@@ -18,10 +18,18 @@ const materialRequestSchema = new mongoose.Schema(
             ref: "User",
             required: true
         },
+        requestType: {
+            type: String,
+            enum: ["Material", "Tool"],
+            default: "Material"
+        },
         materialItemId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "material_items",
-            required: true
+            ref: "material_items"
+        },
+        toolId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "tools"
         },
         requestedQuantity: {
             type: Number,
@@ -39,7 +47,12 @@ const materialRequestSchema = new mongoose.Schema(
         },
         notes: {
             type: String
-        }
+        },
+        comments: [{
+            text: { type: String, required: true },
+            createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+            createdAt: { type: Date, default: Date.now }
+        }]
     },
     { timestamps: true }
 );

@@ -10,6 +10,7 @@ export const getMaterialRequests = async (req, res) => {
             .populate("taskId", "name status")
             .populate("requestedBy", "name")
             .populate("materialItemId", "name unit")
+            .populate("toolId", "name serialNumber")
             .populate("approvedBy", "name")
             .sort({ createdAt: -1 });
         return res.status(200).json({ success: true, requests });
@@ -27,6 +28,7 @@ export const getMaterialRequestById = async (req, res) => {
         const request = await MaterialRequest.findOne({ _id: req.params.requestId, projectId: req.project._id })
             .populate("taskId", "name")
             .populate("materialItemId", "name unit")
+            .populate("toolId", "name serialNumber")
             .populate("requestedBy", "name")
             .populate("approvedBy", "name");
         
@@ -37,29 +39,41 @@ export const getMaterialRequestById = async (req, res) => {
     }
 };
 
-// @desc    Submit a new Material Request
+// @desc    Submit new Material/Tool Requests (Batch)
 // @route   POST /api/projects/:projectId/material-requests
 // @access  Site Engineer
 export const createMaterialRequest = async (req, res) => {
     try {
-        const { taskId, materialItemId, requestedQuantity, notes } = req.body;
+        const { taskId, items, notes } = req.body; // items: [{ requestType, itemId, quantityRequested }]
 
-        if (taskId) {
-            const Task = (await import("../models/task.js")).default;
-            const taskExists = await Task.exists({ _id: taskId, projectId: req.project._id });
-            if (!taskExists) return res.status(400).json({ success: false, message: "Task does not belong to this project" });
+        if (!taskId) {
+            return res.status(400).json({ success: false, message: "A Target Task ID is strictly required." });
         }
 
-        const request = await MaterialRequest.create({
-            projectId: req.project._id,
-            taskId,
-            materialItemId,
-            requestedQuantity,
-            requestedBy: req.user._id,
-            notes
+        if (!items || !items.length) {
+            return res.status(400).json({ success: false, message: "Please provide valid items to request." });
+        }
+
+        const requestDocs = items.map(item => {
+            const doc = {
+                projectId: req.project._id,
+                taskId,
+                requestedBy: req.user._id,
+                requestType: item.requestType || "Material",
+                requestedQuantity: item.quantityRequested,
+                notes
+            };
+            if (doc.requestType === "Tool") {
+                doc.toolId = item.itemId;
+            } else {
+                doc.materialItemId = item.itemId;
+            }
+            return doc;
         });
 
-        return res.status(201).json({ success: true, message: "Material request submitted successfully", request });
+        const requests = await MaterialRequest.insertMany(requestDocs);
+
+        return res.status(201).json({ success: true, message: "Requests submitted successfully", requests });
     } catch (error) {
         return res.status(400).json({ success: false, message: error.message });
     }
@@ -107,6 +121,36 @@ export const respondToMaterialRequest = async (req, res) => {
             message: `Material request has been securely ${status}`,
             request 
         });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Add a comment to a Material Request
+// @route   POST /api/projects/:projectId/material-requests/:requestId/comments
+// @access  Site Engineer / Store Keeper
+export const addCommentToRequest = async (req, res) => {
+    try {
+        const { text } = req.body;
+        if (!text || !text.trim()) {
+            return res.status(400).json({ success: false, message: "Comment text is required." });
+        }
+
+        const request = await MaterialRequest.findOne({ _id: req.params.requestId, projectId: req.project._id });
+        if (!request) return res.status(404).json({ success: false, message: "Material Request not found" });
+
+        request.comments.push({
+            text: text.trim(),
+            createdBy: req.user._id
+        });
+
+        await request.save();
+
+        // Re-fetch with populated comments
+        const updated = await MaterialRequest.findById(request._id)
+            .populate("comments.createdBy", "name email");
+
+        return res.status(201).json({ success: true, message: "Comment added.", request: updated });
     } catch (error) {
         return res.status(400).json({ success: false, message: error.message });
     }

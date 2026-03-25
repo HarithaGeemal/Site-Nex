@@ -2,28 +2,30 @@ import React, { useState } from 'react';
 import { usePMContext } from '../../context/PMContext';
 
 const statusColors = {
-    'In Progress': 'bg-blue-100 text-blue-800',
+    'Active': 'bg-blue-100 text-blue-800',
     'Planning': 'bg-yellow-100 text-yellow-800',
     'Completed': 'bg-green-100 text-green-800',
     'On Hold': 'bg-gray-100 text-gray-800',
 };
 
 const Projects = () => {
-    const { projects, addProject, updateProject, deleteProject } = usePMContext();
+    const { projects, addProject, updateProject, deleteProject, availableUsers } = usePMContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [projectToDelete, setProjectToDelete] = useState(null);
     const [currentProject, setCurrentProject] = useState(null);
     const [filterStatus, setFilterStatus] = useState('All');
 
     const [formData, setFormData] = useState({
         name: '', location: '', startDate: '', estimatedEndDate: '',
-        budget: '', status: 'Planning', progress: 0,
-        projectManager: '', siteEngineer: '', description: ''
+        budget: '', status: 'Planning', plannedBudget: '',
+        clientName: '', projectCode: '', description: '',
+        assignedSiteEngineers: [], assignedStoreKeepers: []
     });
 
     // Stats derived from dummy data
     const stats = {
         total: projects.length,
-        inProgress: projects.filter(p => p.status === 'In Progress').length,
+        inProgress: projects.filter(p => p.status === 'Active').length,
         planning: projects.filter(p => p.status === 'Planning').length,
         completed: projects.filter(p => p.status === 'Completed').length,
         onHold: projects.filter(p => p.status === 'On Hold').length,
@@ -37,10 +39,17 @@ const Projects = () => {
         : projects.filter(p => p.status === filterStatus);
 
     const openModal = (project = null) => {
-        if (project) { setCurrentProject(project); setFormData(project); }
+        if (project) { 
+            setCurrentProject(project); 
+            setFormData({
+                ...project,
+                assignedSiteEngineers: project.assignedSiteEngineers || [],
+                assignedStoreKeepers: project.assignedStoreKeepers || []
+            }); 
+        }
         else {
             setCurrentProject(null);
-            setFormData({ name: '', location: '', startDate: '', estimatedEndDate: '', budget: '', status: 'Planning', progress: 0, projectManager: '', siteEngineer: '', description: '' });
+            setFormData({ name: '', location: '', startDate: '', estimatedEndDate: '', budget: '', status: 'Planning', plannedBudget: '', clientName: '', projectCode: '', description: '', assignedSiteEngineers: [], assignedStoreKeepers: [] });
         }
         setIsModalOpen(true);
     };
@@ -52,15 +61,51 @@ const Projects = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleSEChange = (e) => {
+        const value = Array.from(e.target.selectedOptions, option => option.value);
+        setFormData(prev => ({ ...prev, assignedSiteEngineers: value }));
+    };
+
+    const handleSKChange = (e) => {
+        const value = Array.from(e.target.selectedOptions, option => option.value);
+        setFormData(prev => ({ ...prev, assignedStoreKeepers: value }));
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
+        
+        // Validations
+        const codeRegex = /^[A-Za-z0-9-_]+$/;
+        if (formData.projectCode && !codeRegex.test(formData.projectCode)) {
+            return alert('Validation Error: Project Code must be alphanumeric (dashes and underscores allowed, no spaces).');
+        }
+        
+        if (formData.startDate && formData.estimatedEndDate) {
+            if (new Date(formData.estimatedEndDate) <= new Date(formData.startDate)) {
+                return alert('Validation Error: Estimated End Date must be after the Start Date.');
+            }
+        }
+        if (formData.budget && Number(formData.budget) < 0) {
+            return alert('Validation Error: Budget cannot be negative.');
+        }
+        if (formData.plannedBudget && Number(formData.plannedBudget) < 0) {
+            return alert('Validation Error: Planned Budget cannot be negative.');
+        }
+
         if (currentProject) updateProject(currentProject.id, formData);
         else addProject(formData);
         closeModal();
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this project?')) deleteProject(id);
+    const handleDeleteRequest = (id) => {
+        setProjectToDelete(id);
+    };
+    
+    const confirmDelete = () => {
+        if (projectToDelete) {
+            deleteProject(projectToDelete);
+            setProjectToDelete(null);
+        }
     };
 
     return (
@@ -81,7 +126,7 @@ const Projects = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
                 {[
                     { label: 'Total', value: stats.total, color: 'border-steel-blue text-steel-blue' },
-                    { label: 'In Progress', value: stats.inProgress, color: 'border-blue-400 text-blue-600' },
+                    { label: 'Active', value: stats.inProgress, color: 'border-blue-400 text-blue-600' },
                     { label: 'Planning', value: stats.planning, color: 'border-yellow-400 text-yellow-600' },
                     { label: 'Completed', value: stats.completed, color: 'border-green-400 text-green-600' },
                     { label: 'On Hold', value: stats.onHold, color: 'border-gray-400 text-gray-600' },
@@ -165,7 +210,7 @@ const Projects = () => {
 
                         <div className="mt-4 pt-4 border-t border-concrete-light flex justify-end space-x-3">
                             <button onClick={() => openModal(project)} className="text-steel-blue hover:text-steel-blue/80 text-sm font-medium">Edit</button>
-                            <button onClick={() => handleDelete(project.id)} className="text-red-500 hover:text-red-700 text-sm font-medium">Delete</button>
+                            <button onClick={() => handleDeleteRequest(project.id)} className="text-red-500 hover:text-red-700 text-sm font-medium">Delete</button>
                         </div>
                     </div>
                 ))}
@@ -190,21 +235,68 @@ const Projects = () => {
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Location</label><input type="text" name="location" value={formData.location} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" /></div>
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label><input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Est. End Date</label><input type="date" name="estimatedEndDate" value={formData.estimatedEndDate} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
-                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Budget ($)</label><input type="number" name="budget" value={formData.budget} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
+                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Budget ($)</label><input type="number" name="budget" value={formData.budget} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" /></div>
+                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Planned Budget ($)</label><input type="number" name="plannedBudget" value={formData.plannedBudget || ''} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" placeholder="Optional" /></div>
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                                    <select name="status" value={formData.status} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2">
-                                        <option value="Planning">Planning</option><option value="In Progress">In Progress</option><option value="On Hold">On Hold</option><option value="Completed">Completed</option>
+                                    <select name="status" value={formData.status} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none">
+                                        <option value="Planning">Planning</option>
+                                        <option value="Active">Active</option>
+                                        <option value="On Hold">On Hold</option>
+                                        <option value="Completed">Completed</option>
                                     </select>
                                 </div>
-                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Progress (%)</label><input type="number" name="progress" min="0" max="100" value={formData.progress} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
-                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Project Manager</label><input type="text" name="projectManager" value={formData.projectManager} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
-                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Site Engineer</label><input type="text" name="siteEngineer" value={formData.siteEngineer} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
+                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label><input type="text" name="clientName" value={formData.clientName || ''} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" placeholder="Optional" /></div>
+                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Project Code</label><input type="text" name="projectCode" value={formData.projectCode || ''} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" placeholder="Optional" /></div>
+                                
+                                <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4 mt-2">
+                                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Site Engineers (Hold Ctrl/Cmd)</label>
+                                        <select 
+                                            name="assignedSiteEngineers" multiple value={formData.assignedSiteEngineers} onChange={handleSEChange} 
+                                            className="w-full border border-gray-300 rounded px-3 py-2 h-24 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" 
+                                            disabled={!!currentProject}
+                                        >
+                                            {availableUsers?.filter(u => u.role === 'SITE_ENGINEER').map((u, i) => (
+                                                <option key={`${u.id}-${i}`} value={String(u.id)}>{u.name} — {u.status}</option>
+                                            ))}
+                                        </select>
+                                        {!!currentProject && <span className="text-xs text-orange-500">Assignments can currently only be set during creation.</span>}
+                                    </div>
+                                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Store Keepers (Hold Ctrl/Cmd)</label>
+                                        <select 
+                                            name="assignedStoreKeepers" multiple value={formData.assignedStoreKeepers} onChange={handleSKChange} 
+                                            className="w-full border border-gray-300 rounded px-3 py-2 h-24 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" 
+                                            disabled={!!currentProject}
+                                        >
+                                            {availableUsers?.filter(u => u.role === 'STORE_KEEPER').map((u, i) => (
+                                                <option key={`${u.id}-${i}`} value={String(u.id)}>{u.name} — {u.status}</option>
+                                            ))}
+                                        </select>
+                                        {!!currentProject && <span className="text-xs text-orange-500">Assignments can currently only be set during creation.</span>}
+                                    </div>
+                                </div>
                             </div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea name="description" value={formData.description} onChange={handleChange} rows="3" required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
                         </form>
                         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end space-x-3">
                             <button type="button" onClick={closeModal} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium">Cancel</button>
                             <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-steel-blue text-white rounded hover:bg-steel-blue/90 font-medium">Save Project</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Custom Delete Confirmation Modal */}
+            {projectToDelete && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in fade-in">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all p-6 text-center">
+                        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Project</h3>
+                        <p className="text-sm text-gray-500 mb-6">Are you sure you want to delete this project? This action cannot be undone.</p>
+                        <div className="flex justify-center space-x-3">
+                            <button onClick={() => setProjectToDelete(null)} className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium w-full">Cancel</button>
+                            <button onClick={confirmDelete} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium w-full">Delete</button>
                         </div>
                     </div>
                 </div>

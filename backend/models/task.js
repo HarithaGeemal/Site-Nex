@@ -7,6 +7,11 @@ const taskSchema = new mongoose.Schema(
             ref: "projects",
             required: true,
         },
+        parentTaskId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "tasks",
+            default: null,
+        },
 
         name: { type: String, required: true },
         description: { type: String, required: true },
@@ -29,6 +34,14 @@ const taskSchema = new mongoose.Schema(
         percentComplete: { type: Number, min: 0, max: 100, default: 0 },
 
         dependencyTaskIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "tasks" }],
+
+        // Workers assigned to this task (from Worker model, not system Users)
+        assignedWorkers: [{ type: mongoose.Schema.Types.ObjectId, ref: "Worker" }],
+        
+        // System Users assigned to this task by Role
+        assignedSiteEngineers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+        assignedStoreKeepers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+
         isCancled: { type: Boolean, default: false },
         cancellationReason: { type: String },
 
