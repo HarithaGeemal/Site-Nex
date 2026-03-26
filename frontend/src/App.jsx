@@ -9,6 +9,7 @@ import { SEProvider } from "./context/SEContext";
 import { SOProvider } from "./context/SOContext";
 import RoleGuard from "./components/RoleGuard";
 import SOLayout from "./layouts/SOLayout";
+import WorkerLayout from "./components/Worker/WorkerLayout";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -38,6 +39,12 @@ import SOPTWs from "./pages/SO/SOPTWs";
 import SOTools from "./pages/SO/SOTools";
 import SOSafetyNotices from "./pages/SO/SOSafetyNotices";
 
+import WorkerDashboard from "./pages/Worker/WorkerDashboard";
+import WorkerTasks from "./pages/Worker/WorkerTasks";
+import WorkerSafety from "./pages/Worker/WorkerSafety";
+import WorkerMaterials from "./pages/Worker/WorkerMaterials";
+import WorkerTimesheets from "./pages/Worker/WorkerTimesheets";
+
 const PrivateRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
     if (loading) return <div className="flex h-screen items-center justify-center"><div className="animate-pulse text-xl text-gray-500 font-bold">Loading...</div></div>;
@@ -52,7 +59,7 @@ const PublicRoute = ({ children }) => {
 
 const App = () => {
     return (
-        <PMProvider>
+        <>
             <ToastContainer position="top-right" />
             <Routes>
                 {/* Public Routes */}
@@ -66,7 +73,7 @@ const App = () => {
 
                 {/* Protected PM Routes */}
                 <Route path="/pm" element={
-                    <PrivateRoute><PMLayout /></PrivateRoute>
+                    <PrivateRoute><PMProvider><PMLayout /></PMProvider></PrivateRoute>
                 }>
                     <Route index element={<Navigate to="dashboard" replace />} />
                     <Route path="dashboard" element={<Dashboard />} />
@@ -107,10 +114,22 @@ const App = () => {
                     <Route path="tools" element={<SOTools />} />
                 </Route>
 
+                {/* Protected WORKER Routes */}
+                <Route path="/worker" element={
+                    <PrivateRoute><WorkerLayout /></PrivateRoute>
+                }>
+                    <Route index element={<Navigate to="dashboard" replace />} />
+                    <Route path="dashboard" element={<WorkerDashboard />} />
+                    <Route path="tasks" element={<WorkerTasks />} />
+                    <Route path="safety" element={<WorkerSafety />} />
+                    <Route path="materials" element={<WorkerMaterials />} />
+                    <Route path="timesheets" element={<WorkerTimesheets />} />
+                </Route>
+
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
-        </PMProvider>
+        </>
     );
 };
 

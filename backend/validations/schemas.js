@@ -48,7 +48,7 @@ export const registerUserSchema = z.object({
     userId: z.string().min(1),
     name: z.string().min(1),
     email: z.string().email(),
-    userRole: z.enum(["ADMIN", "PROJECT_MANAGER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER"]),
+    userRole: z.enum(["ADMIN", "PROJECT_MANAGER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER", "SAFETY_OFFICER", "WORKER"]),
     phone: z.string().optional(),
     nic: z.string().optional(),
 });
@@ -88,7 +88,7 @@ export const updateProjectSchema = createProjectSchema.partial();
 
 export const addProjectMemberSchema = z.object({
     userId: objectId,
-    role: z.enum(["PROJECT_MANAGER", "SAFETY_OFFICER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER"]),
+    role: z.enum(["PROJECT_MANAGER", "SAFETY_OFFICER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER", "WORKER"]),
     isPrimary: z.boolean().optional(),
 });
 

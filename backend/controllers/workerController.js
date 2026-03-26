@@ -1,6 +1,9 @@
 import mongoose from "mongoose";
 import Worker from "../models/worker.js";
 
+import ProjectMembership from "../models/projectMembership.js";
+import User from "../models/users.js";
+
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 // @desc    Add a worker to a project
@@ -8,18 +11,49 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 // @access  Private (project-scoped)
 export const addWorker = async (req, res) => {
     try {
-        const { name, trade, phone, nic, status } = req.body;
+        const { userId, name, trade, phone, nic, status } = req.body;
 
-        if (!name || !trade) {
-            return res.status(400).json({ success: false, message: "Name and trade are required" });
+        if (!trade) {
+            return res.status(400).json({ success: false, message: "Trade is required" });
+        }
+        
+        // If a registered user is being assigned, fetch their details and ensure membership
+        let finalName = name;
+        let finalPhone = phone || "";
+        let finalNic = nic || "";
+        
+        if (userId) {
+            if (!isValidId(userId)) return res.status(400).json({ success: false, message: "Invalid userId" });
+            const user = await User.findById(userId);
+            if (!user) return res.status(404).json({ success: false, message: "User not found" });
+            
+            finalName = user.name;
+            finalPhone = user.phone || "";
+            finalNic = user.nic || "";
+            
+            // Auto-enroll in ProjectMembership
+            const existingMembership = await ProjectMembership.findOne({ projectId: req.project._id, userId });
+            if (!existingMembership) {
+                await ProjectMembership.create({
+                    projectId: req.project._id,
+                    userId,
+                    role: "WORKER"
+                });
+            } else if (existingMembership.removedAt) {
+                existingMembership.removedAt = null;
+                await existingMembership.save();
+            }
+        } else if (!name) {
+            return res.status(400).json({ success: false, message: "Name is required if no user is assigned." });
         }
 
         const worker = await Worker.create({
             projectId: req.project._id,
-            name: name.trim(),
+            userId: userId || null,
+            name: finalName.trim(),
             trade,
-            phone: phone || "",
-            nic: nic || "",
+            phone: finalPhone,
+            nic: finalNic,
             status: status || "Active",
         });
 

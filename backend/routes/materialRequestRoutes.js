@@ -4,6 +4,8 @@ import {
     getMaterialRequestById,
     createMaterialRequest,
     respondToMaterialRequest,
+    approveWorkerMaterialRequest,
+    denyWorkerMaterialRequest,
     addCommentToRequest
 } from "../controllers/materialRequestController.js";
 import { authorizeProjectAccess } from "../middlewares/rbacMiddleware.js";
@@ -32,6 +34,22 @@ router.route("/:requestId/respond")
         authorizeProjectAccess("STORE_KEEPER"), 
         validateRequest({ params: materialRequestIdParamSchema, body: respondMaterialRequestSchema }), 
         respondToMaterialRequest
+    );
+
+// SE specific mediator approval endpoint
+router.route("/:requestId/se-approve")
+    .patch(
+        authorizeProjectAccess("SITE_ENGINEER"),
+        validateRequest({ params: materialRequestIdParamSchema }),
+        approveWorkerMaterialRequest
+    );
+
+// SE specific mediator deny endpoint
+router.route("/:requestId/se-deny")
+    .patch(
+        authorizeProjectAccess("SITE_ENGINEER"),
+        validateRequest({ params: materialRequestIdParamSchema }),
+        denyWorkerMaterialRequest
     );
 
 // Comments endpoint (SE and Store Keeper can comment)

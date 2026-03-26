@@ -130,13 +130,14 @@ export const loadUsageLog = async (req, res, next) => {
 // Authorizers
 // ----------------------------------------------------
 
-const ROLE_HIERARCHY = {
-    OWNER: 50,
-    PROJECT_MANAGER: 40,
-    SAFETY_OFFICER: 35,
-    SITE_ENGINEER: 30,
-    STORE_KEEPER: 20,
-    ASSISTANT_ENGINEER: 10
+const ROLE_PERMISSIONS_MATRIX = {
+    "ASSISTANT_ENGINEER": ["OWNER", "PROJECT_MANAGER", "SAFETY_OFFICER", "SITE_ENGINEER", "STORE_KEEPER", "ASSISTANT_ENGINEER"],
+    "STORE_KEEPER":       ["OWNER", "PROJECT_MANAGER", "SAFETY_OFFICER", "SITE_ENGINEER", "STORE_KEEPER"],
+    "SITE_ENGINEER":      ["OWNER", "PROJECT_MANAGER", "SITE_ENGINEER"],
+    "SAFETY_OFFICER":     ["OWNER", "PROJECT_MANAGER", "SAFETY_OFFICER"],
+    "PROJECT_MANAGER":    ["OWNER", "PROJECT_MANAGER"],
+    "OWNER":              ["OWNER"],
+    "WORKER":             ["OWNER", "PROJECT_MANAGER", "SITE_ENGINEER", "WORKER"]
 };
 
 /**
@@ -166,13 +167,18 @@ export const authorizeProjectAccess = (minimumRole = "ASSISTANT_ENGINEER") => {
                 return res.status(403).json({ success: false, message: "Access denied. You are not an active member of this project." });
             }
 
-            const userRoleWeight = ROLE_HIERARCHY[membership.role] || 0;
-            const minimumWeight = ROLE_HIERARCHY[minimumRole] || 0;
+            // Allow custom arrays OR the legacy string mapping
+            let allowedRoles = [];
+            if (Array.isArray(minimumRole)) {
+                allowedRoles = minimumRole;
+            } else {
+                allowedRoles = ROLE_PERMISSIONS_MATRIX[minimumRole] || ["OWNER"]; // Default safe fallback
+            }
 
-            if (userRoleWeight < minimumWeight) {
+            if (!allowedRoles.includes(membership.role)) {
                 return res.status(403).json({
                     success: false,
-                    message: `Access denied. Requires at least ${minimumRole} role, but you are ${membership.role}.`
+                    message: `Access denied. Your role (${membership.role}) is not authorized for this action. Minimum required: ${minimumRole}`
                 });
             }
 

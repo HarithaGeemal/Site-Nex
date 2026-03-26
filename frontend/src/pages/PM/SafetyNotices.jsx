@@ -222,7 +222,7 @@ const SafetyNotices = () => {
 
             {/* Hold Task Modal */}
             {isHoldModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
                         <div className="px-6 py-4 border-b flex justify-between items-center bg-red-50">
                             <h3 className="text-lg font-semibold text-red-800">Issue Stop/Hold Notice</h3>

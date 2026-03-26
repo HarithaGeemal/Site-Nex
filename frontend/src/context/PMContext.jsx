@@ -314,9 +314,10 @@ export const PMProvider = (props) => {
     const addWorker = async (worker) => {
         try {
             const projectId = worker.projectId;
-            if (!projectId) return console.error("No projectId for worker creation");
+            if (!projectId) { alert('Please select a project.'); return; }
 
             const payload = {
+                userId: worker.userId || undefined,
                 name: worker.name,
                 trade: worker.trade || 'Other',
                 phone: worker.phone || '',
@@ -325,7 +326,11 @@ export const PMProvider = (props) => {
             };
             const { data } = await axiosClient.post(`/projects/${projectId}/workers`, payload);
             if (data.success) await fetchWorkers();
-        } catch (e) { console.error("Error adding worker:", e.response?.data || e.message); }
+        } catch (e) {
+            const msg = e.response?.data?.message || e.message;
+            console.error("Error adding worker:", msg);
+            alert('Failed to add worker: ' + msg);
+        }
     };
 
     const updateWorker = async (id, updated) => {
@@ -346,11 +351,15 @@ export const PMProvider = (props) => {
 
     const deleteWorker = async (id) => {
         const existing = workers.find(w => w.id === id);
-        if (!existing) return;
+        if (!existing) { alert('Worker not found in local state.'); return; }
         try {
             await axiosClient.delete(`/projects/${existing.projectId}/workers/${id}`);
-            setWorkers(prev => removeById(prev, id));
-        } catch (e) { console.error("Error deleting worker:", e.response?.data || e.message); }
+            await fetchWorkers();
+        } catch (e) {
+            const msg = e.response?.data?.message || e.message;
+            console.error("Error deleting worker:", msg);
+            alert('Failed to remove worker: ' + msg);
+        }
     };
 
     // Issues

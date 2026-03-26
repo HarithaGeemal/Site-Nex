@@ -3,6 +3,7 @@ import { useSEContext } from '../../context/SEContext';
 import useAxios from '../../hooks/useAxios';
 
 const statusColors = {
+    'Pending SE Approval': 'bg-orange-100 text-orange-800 border-orange-200',
     'Pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
     'Approved': 'bg-blue-100 text-blue-800 border-blue-200',
     'Partially Fulfilled': 'bg-purple-100 text-purple-800 border-purple-200',
@@ -143,6 +144,41 @@ const SEMaterials = () => {
         }
     };
 
+    const handleSEApproveWorkerRequest = async (requestItem) => {
+        const pId = typeof requestItem.projectId === 'object' ? (requestItem.projectId._id || requestItem.projectId) : requestItem.projectId;
+        const reqId = requestItem._id || requestItem.id;
+        
+        try {
+            const { data } = await axiosClient.patch(`/projects/${pId}/material-requests/${reqId}/se-approve`);
+            if (data.success) {
+                alert("Request explicitly authorized and forwarded to Store Keeper.");
+                await fetchMaterialRequests();
+            }
+        } catch (error) {
+            console.error("Failed to approve worker request", error);
+            alert(error.response?.data?.message || "Failed to approve request.");
+        }
+    };
+
+    const handleSEDenyWorkerRequest = async (requestItem) => {
+        const reason = prompt("Reason for denying this request (optional):");
+        if (reason === null) return;
+        
+        const pId = typeof requestItem.projectId === 'object' ? (requestItem.projectId._id || requestItem.projectId) : requestItem.projectId;
+        const reqId = requestItem._id || requestItem.id;
+        
+        try {
+            const { data } = await axiosClient.patch(`/projects/${pId}/material-requests/${reqId}/se-deny`, { reason });
+            if (data.success) {
+                alert("Request has been denied.");
+                await fetchMaterialRequests();
+            }
+        } catch (error) {
+            console.error("Failed to deny worker request", error);
+            alert(error.response?.data?.message || "Failed to deny request.");
+        }
+    };
+
     return (
         <div className="p-6 max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-6 border-b border-gray-200 pb-4">
@@ -202,6 +238,22 @@ const SEMaterials = () => {
                                             <span className={`px-2 py-1 text-xs font-medium rounded-full border ${statusColors[req.status] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
                                                 {req.status}
                                             </span>
+                                            {req.status === "Pending SE Approval" && (
+                                                <div className="flex gap-2">
+                                                    <button 
+                                                        onClick={() => handleSEApproveWorkerRequest(req)}
+                                                        className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded shadow-sm transition-colors"
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleSEDenyWorkerRequest(req)}
+                                                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded shadow-sm transition-colors"
+                                                    >
+                                                        Deny
+                                                    </button>
+                                                </div>
+                                            )}
                                             <button 
                                                 onClick={() => setExpandedRequestId(isExpanded ? null : (req._id || req.id))}
                                                 className="text-gray-400 hover:text-steel-blue transition-colors p-1"

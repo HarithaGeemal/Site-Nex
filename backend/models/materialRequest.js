@@ -38,7 +38,7 @@ const materialRequestSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ["Pending", "Approved", "Denied"],
+            enum: ["Pending SE Approval", "Pending", "Approved", "Denied"],
             default: "Pending"
         },
         approvedBy: {

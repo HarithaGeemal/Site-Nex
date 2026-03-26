@@ -24,14 +24,17 @@ const tradeIcons = {
 const TRADES = ['Plumber', 'Electrician', 'Carpenter', 'Painter', 'Welder', 'Mason', 'Operator', 'General Laborer', 'Foreman', 'Supervisor', 'Other'];
 
 const Workers = () => {
-    const { workers, projects, addWorker, updateWorker, deleteWorker } = usePMContext();
+    const { workers, projects, availableUsers, addWorker, updateWorker, deleteWorker } = usePMContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentWorker, setCurrentWorker] = useState(null);
     const [filterStatus, setFilterStatus] = useState('All');
     const [filterProject, setFilterProject] = useState('All');
+    
+    // Filter available workers from context
+    const availableSystemWorkers = availableUsers.filter(u => u.role === "WORKER");
 
     const [formData, setFormData] = useState({
-        projectId: '', name: '', trade: 'General Laborer', phone: '', nic: '', status: 'Active'
+        projectId: '', userId: '', name: '', trade: 'General Laborer', phone: '', nic: '', status: 'Active'
     });
 
     const stats = {
@@ -52,6 +55,7 @@ const Workers = () => {
             setCurrentWorker(worker);
             setFormData({
                 projectId: worker.projectId || '',
+                userId: worker.userId || '',
                 name: worker.name || '',
                 trade: worker.trade || 'General Laborer',
                 phone: worker.phone || '',
@@ -62,7 +66,7 @@ const Workers = () => {
             setCurrentWorker(null);
             setFormData({
                 projectId: projects[0]?.id || '',
-                name: '', trade: 'General Laborer', phone: '', nic: '', status: 'Active'
+                userId: '', name: '', trade: 'General Laborer', phone: '', nic: '', status: 'Active'
             });
         }
         setIsModalOpen(true);
@@ -72,6 +76,20 @@ const Workers = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+        
+        // If selecting a registered user, auto-populate details but allow override
+        if (name === "userId" && value) {
+            const selectedUser = availableSystemWorkers.find(u => u.id === value);
+            if (selectedUser) {
+                setFormData(prev => ({
+                    ...prev,
+                    userId: value,
+                    name: selectedUser.name
+                }));
+                return;
+            }
+        }
+        
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
@@ -200,7 +218,7 @@ const Workers = () => {
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
                         <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
                             <h3 className="text-lg font-semibold text-gray-800">{currentWorker ? 'Edit Worker' : 'Add New Worker'}</h3>
@@ -213,13 +231,25 @@ const Workers = () => {
                                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
                             </div>
-                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
+                            {!currentWorker && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Select Registered Worker</label>
+                                    <select name="userId" value={formData.userId} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2">
+                                        <option value="">-- Manual Entry (Unregistered) --</option>
+                                        {availableSystemWorkers.map(w => (
+                                            <option key={w.id} value={w.id}>{w.name} ({w.email})</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">Select a registered worker account to link it automatically.</p>
+                                </div>
+                            )}
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" readOnly={!!formData.userId} /></div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Trade / Specialty</label>
                                 <select name="trade" value={formData.trade} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2">
                                     {TRADES.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
                             </div>
-                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label><input type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" /></div>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label><input type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" placeholder="Required if manual entry" /></div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">NIC Number</label><input type="text" name="nic" value={formData.nic} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" placeholder="Optional" /></div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                                 <select name="status" value={formData.status} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2">

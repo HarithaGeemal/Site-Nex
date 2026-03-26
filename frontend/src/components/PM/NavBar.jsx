@@ -4,7 +4,8 @@ import { usePMContext } from '../../context/PMContext';
 
 const NavBar = () => {
     const { user } = useAuth();
-    const { issues } = usePMContext();
+    const pmContext = usePMContext();
+    const issues = pmContext?.issues || [];
 
     // Count open/urgent issues as "notifications"
     const notificationCount = issues.filter(
@@ -27,7 +28,7 @@ const NavBar = () => {
                 <div className="flex items-center">
                     <div className="hidden md:flex flex-col ml-3">
                         <span className="text-xl font-bold text-steel-blue tracking-tight">SiteNex</span>
-                        <span className="text-xs font-medium text-amber uppercase tracking-wider">PM Portal</span>
+                        <span className="text-xs font-medium text-amber uppercase tracking-wider">{user?.userRole ? user.userRole.replace('_', ' ') + ' Portal' : 'Portal'}</span>
                     </div>
                 </div>
             </div>

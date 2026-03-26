@@ -8,6 +8,12 @@ const workerSchema = new mongoose.Schema(
             required: true,
             index: true,
         },
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: false,
+            index: true,
+        },
         name: { type: String, required: true },
         trade: {
             type: String,

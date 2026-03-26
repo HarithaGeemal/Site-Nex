@@ -12,6 +12,7 @@ export const SEProvider = (props) => {
     const [dashboardMetrics, setDashboardMetrics] = useState(null);
     const [dailyReports, setDailyReports] = useState([]);
     const [ptws, setPtws] = useState([]);
+    const [pendingTimesheets, setPendingTimesheets] = useState([]);
 
     const fetchProjects = useCallback(async () => {
         try {
@@ -88,6 +89,37 @@ export const SEProvider = (props) => {
             }
         } catch (error) { console.error("Error fetching reports:", error); }
     }, [axiosClient]);
+
+    const fetchPendingTimesheets = useCallback(async () => {
+        try {
+            const { data } = await axiosClient.get("/se/pending-timesheets");
+            if (data.success) setPendingTimesheets(data.timesheets);
+        } catch (error) { console.error("Error fetching pending timesheets:", error); }
+    }, [axiosClient]);
+
+    const approveTimesheet = async (id, note) => {
+        try {
+            const { data } = await axiosClient.patch(`/se/timesheets/${id}/approve`, { note });
+            if (data.success) await fetchPendingTimesheets();
+            return data;
+        } catch (error) {
+            console.error("Error approving timesheet", error);
+            alert(error.response?.data?.message || "Failed to approve timesheet.");
+            throw error;
+        }
+    };
+
+    const rejectTimesheet = async (id, note) => {
+        try {
+            const { data } = await axiosClient.patch(`/se/timesheets/${id}/reject`, { note });
+            if (data.success) await fetchPendingTimesheets();
+            return data;
+        } catch (error) {
+            console.error("Error rejecting timesheet", error);
+            alert(error.response?.data?.message || "Failed to reject timesheet.");
+            throw error;
+        }
+    };
 
     const addDailyReport = async (report) => {
         try {
@@ -190,12 +222,13 @@ export const SEProvider = (props) => {
         fetchSubtaskApprovals();
         fetchMaterialRequests();
         fetchDailyReports();
-    }, [fetchProjects, fetchDashboardMetrics, fetchAssignedTasks, fetchSubtaskApprovals, fetchMaterialRequests, fetchDailyReports]);
+        fetchPendingTimesheets();
+    }, [fetchProjects, fetchDashboardMetrics, fetchAssignedTasks, fetchSubtaskApprovals, fetchMaterialRequests, fetchDailyReports, fetchPendingTimesheets]);
 
     const value = {
-        projects, assignedTasks, subtaskApprovals, materialRequests, dashboardMetrics, dailyReports, ptws,
-        fetchProjects, fetchDashboardMetrics, fetchAssignedTasks, fetchSubtaskApprovals, fetchMaterialRequests, fetchDailyReports, fetchPTWsByProject,
-        createSubtask, approveSubtask, requestMainTaskCompletion, addDailyReport, createPTW
+        projects, assignedTasks, subtaskApprovals, materialRequests, dashboardMetrics, dailyReports, ptws, pendingTimesheets,
+        fetchProjects, fetchDashboardMetrics, fetchAssignedTasks, fetchSubtaskApprovals, fetchMaterialRequests, fetchDailyReports, fetchPTWsByProject, fetchPendingTimesheets,
+        createSubtask, approveSubtask, requestMainTaskCompletion, addDailyReport, createPTW, approveTimesheet, rejectTimesheet
     };
 
     return (

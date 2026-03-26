@@ -63,19 +63,17 @@ const Projects = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSEChange = (e) => {
-        const value = Array.from(e.target.selectedOptions, option => option.value);
-        setFormData(prev => ({ ...prev, assignedSiteEngineers: value }));
-    };
-
-    const handleSKChange = (e) => {
-        const value = Array.from(e.target.selectedOptions, option => option.value);
-        setFormData(prev => ({ ...prev, assignedStoreKeepers: value }));
-    };
-
-    const handleSOChange = (e) => {
-        const value = Array.from(e.target.selectedOptions, option => option.value);
-        setFormData(prev => ({ ...prev, assignedSafetyOfficers: value }));
+    const handleToggleAssignment = (field, userId) => {
+        setFormData(prev => {
+            const current = prev[field] || [];
+            const exists = current.includes(userId);
+            return {
+                ...prev,
+                [field]: exists
+                    ? current.filter(id => id !== userId)
+                    : [...current, userId]
+            };
+        });
     };
 
     const handleSubmit = (e) => {
@@ -230,7 +228,7 @@ const Projects = () => {
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black/50 bg-opacity-20 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden">
                         <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
                             <h3 className="text-lg font-semibold text-gray-800">{currentProject ? 'Edit Project' : 'Add New Project'}</h3>
@@ -255,42 +253,79 @@ const Projects = () => {
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label><input type="text" name="clientName" value={formData.clientName || ''} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" placeholder="Optional" /></div>
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Project Code</label><input type="text" name="projectCode" value={formData.projectCode || ''} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" placeholder="Optional" /></div>
                                 
-                                <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4 mt-2">
-                                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Site Engineers</label>
-                                        <select 
-                                            name="assignedSiteEngineers" multiple value={formData.assignedSiteEngineers} onChange={handleSEChange} 
-                                            className="w-full border border-gray-300 rounded px-3 py-2 h-24 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" 
-                                            disabled={!!currentProject}
-                                        >
-                                            {availableUsers?.filter(u => u.role === 'SITE_ENGINEER').map((u, i) => (
-                                                <option key={`${u.id}-${i}`} value={String(u.id)}>{u.name} — {u.status}</option>
-                                            ))}
-                                        </select>
-                                        {!!currentProject && <span className="text-xs text-orange-500">Assignments set at creation.</span>}
-                                    </div>
-                                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Safety Officers</label>
-                                        <select 
-                                            name="assignedSafetyOfficers" multiple value={formData.assignedSafetyOfficers} onChange={handleSOChange} 
-                                            className="w-full border border-gray-300 rounded px-3 py-2 h-24 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" 
-                                            disabled={!!currentProject}
-                                        >
-                                            {availableUsers?.filter(u => u.role === 'SAFETY_OFFICER').map((u, i) => (
-                                                <option key={`${u.id}-${i}`} value={String(u.id)}>{u.name} — {u.status}</option>
-                                            ))}
-                                        </select>
-                                        {!!currentProject && <span className="text-xs text-orange-500">Assignments set at creation.</span>}
-                                    </div>
-                                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Assign Store Keepers</label>
-                                        <select 
-                                            name="assignedStoreKeepers" multiple value={formData.assignedStoreKeepers} onChange={handleSKChange} 
-                                            className="w-full border border-gray-300 rounded px-3 py-2 h-24 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" 
-                                            disabled={!!currentProject}
-                                        >
-                                            {availableUsers?.filter(u => u.role === 'STORE_KEEPER').map((u, i) => (
-                                                <option key={`${u.id}-${i}`} value={String(u.id)}>{u.name} — {u.status}</option>
-                                            ))}
-                                        </select>
-                                        {!!currentProject && <span className="text-xs text-orange-500">Assignments set at creation.</span>}
+                                <div className="col-span-1 md:col-span-2 border-t pt-4 mt-2">
+                                    <h4 className="text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">Team Assignments</h4>
+                                    {!!currentProject && <p className="text-xs text-orange-500 mb-3">⚠ Assignments are set at creation. Edit is disabled.</p>}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        {/* Site Engineers */}
+                                        <div className="border border-gray-200 rounded-lg bg-gray-50/50 p-3">
+                                            <label className="block text-xs font-bold text-steel-blue uppercase tracking-wider mb-2">Site Engineers</label>
+                                            <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                                                {availableUsers?.filter(u => u.role === 'SITE_ENGINEER').length === 0 ? (
+                                                    <p className="text-xs text-gray-400 italic">No engineers available</p>
+                                                ) : availableUsers?.filter(u => u.role === 'SITE_ENGINEER').map((u, i) => (
+                                                    <label key={`se-${u.id}-${i}`} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors ${formData.assignedSiteEngineers.includes(String(u.id)) ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-100'} ${!!currentProject ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={formData.assignedSiteEngineers.includes(String(u.id))}
+                                                            onChange={() => handleToggleAssignment('assignedSiteEngineers', String(u.id))}
+                                                            disabled={!!currentProject}
+                                                            className="rounded border-gray-300 text-steel-blue focus:ring-steel-blue"
+                                                        />
+                                                        <div className="min-w-0">
+                                                            <span className="text-sm font-medium text-gray-800 block truncate">{u.name}</span>
+                                                            <span className="text-[10px] text-gray-400">{u.status}</span>
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* Safety Officers */}
+                                        <div className="border border-gray-200 rounded-lg bg-gray-50/50 p-3">
+                                            <label className="block text-xs font-bold text-amber uppercase tracking-wider mb-2">Safety Officers</label>
+                                            <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                                                {availableUsers?.filter(u => u.role === 'SAFETY_OFFICER').length === 0 ? (
+                                                    <p className="text-xs text-gray-400 italic">No officers available</p>
+                                                ) : availableUsers?.filter(u => u.role === 'SAFETY_OFFICER').map((u, i) => (
+                                                    <label key={`so-${u.id}-${i}`} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors ${formData.assignedSafetyOfficers.includes(String(u.id)) ? 'bg-amber-50 border border-amber-200' : 'hover:bg-gray-100'} ${!!currentProject ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={formData.assignedSafetyOfficers.includes(String(u.id))}
+                                                            onChange={() => handleToggleAssignment('assignedSafetyOfficers', String(u.id))}
+                                                            disabled={!!currentProject}
+                                                            className="rounded border-gray-300 text-amber focus:ring-amber"
+                                                        />
+                                                        <div className="min-w-0">
+                                                            <span className="text-sm font-medium text-gray-800 block truncate">{u.name}</span>
+                                                            <span className="text-[10px] text-gray-400">{u.status}</span>
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* Store Keepers */}
+                                        <div className="border border-gray-200 rounded-lg bg-gray-50/50 p-3">
+                                            <label className="block text-xs font-bold text-green-700 uppercase tracking-wider mb-2">Store Keepers</label>
+                                            <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                                                {availableUsers?.filter(u => u.role === 'STORE_KEEPER').length === 0 ? (
+                                                    <p className="text-xs text-gray-400 italic">No keepers available</p>
+                                                ) : availableUsers?.filter(u => u.role === 'STORE_KEEPER').map((u, i) => (
+                                                    <label key={`sk-${u.id}-${i}`} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors ${formData.assignedStoreKeepers.includes(String(u.id)) ? 'bg-green-50 border border-green-200' : 'hover:bg-gray-100'} ${!!currentProject ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={formData.assignedStoreKeepers.includes(String(u.id))}
+                                                            onChange={() => handleToggleAssignment('assignedStoreKeepers', String(u.id))}
+                                                            disabled={!!currentProject}
+                                                            className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                                        />
+                                                        <div className="min-w-0">
+                                                            <span className="text-sm font-medium text-gray-800 block truncate">{u.name}</span>
+                                                            <span className="text-[10px] text-gray-400">{u.status}</span>
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

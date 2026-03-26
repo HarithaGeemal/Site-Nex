@@ -23,6 +23,7 @@ import safetyDashboardRoutes from './routes/safetyDashboardRoutes.js';
 import pmDashboardRoutes from './routes/pmDashboardRoutes.js';
 import seDashboardRoutes from './routes/seDashboardRoutes.js';
 import workerRoutes from './routes/workerRoutes.js';
+import workerPortalRoutes from './routes/workerPortalRoutes.js';
 
 import protect from './middlewares/authMiddleware.js';
 import { validateRequest } from './middlewares/validateRequest.js';
@@ -81,9 +82,10 @@ app.use('/api/projects/:projectId/material-requests', projectScopedMiddlewares, 
 // Global Material Catalog Routes for global material catalog endpoints (/api/materials/items)
 app.use('/api/materials', express.json(), materialCatalogRoutes);
 
-// Global PM & SE Aggregation endpoints
+// Global PM & SE & Worker Aggregation endpoints
 app.use('/api/pm', pmDashboardRoutes);
 app.use('/api/se', seDashboardRoutes);
+app.use('/api/worker', workerPortalRoutes);
 
 app.get('/', (req, res) => {
     res.send('SiteNex Backend is running!');
