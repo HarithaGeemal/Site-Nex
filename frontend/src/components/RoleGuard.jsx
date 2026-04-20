@@ -20,8 +20,9 @@ const RoleGuard = () => {
     // Role-based routing — read directly from AuthContext user object
     switch (user.userRole) {
         case 'PROJECT_MANAGER':
-        case 'ADMIN':
             return <Navigate to="/pm/dashboard" replace />;
+        case 'ADMIN':
+            return <Navigate to="/admin/dashboard" replace />;
         case 'STORE_KEEPER':
             return <Navigate to="/sk/dashboard" replace />;
         case 'SITE_ENGINEER':

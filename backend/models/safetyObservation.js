@@ -25,6 +25,11 @@ const safetyObservationSchema = new mongoose.Schema(
             required: true
         },
         location: { type: String, required: true },
+        taskId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "tasks",
+            default: null
+        },
         dueDate: { type: Date },
         photos: [{ type: String }],
         status: {

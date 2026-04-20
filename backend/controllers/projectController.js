@@ -183,9 +183,30 @@ export const getProjectById = async (req, res) => {
 // @access  Admin / Project Manager
 export const updateProject = async (req, res) => {
     try {
+        const { name, location, startDate, endDate, description, budget, status, clientName, projectCode, plannedBudget, actualBudgetUsed } = req.body;
 
-        // Do not allow manual status or progress updates here — they are calculated dynamically via tasks/issues
-        const { name, location, startDate, endDate, description, budget, clientName, projectCode, plannedBudget, actualBudgetUsed } = req.body;
+        // Validate projectCode format if provided
+        if (projectCode !== undefined && projectCode !== '') {
+            const codeRegex = /^[A-Za-z0-9\-_]+$/;
+            if (!codeRegex.test(projectCode)) {
+                return res.status(400).json({ success: false, message: "Project Code must be alphanumeric (dashes and underscores allowed, no spaces)." });
+            }
+        }
+
+        // Validate dates if provided
+        if (startDate && endDate) {
+            if (new Date(endDate) <= new Date(startDate)) {
+                return res.status(400).json({ success: false, message: "End Date must be after the Start Date." });
+            }
+        }
+
+        // Validate budget
+        if (budget !== undefined && Number(budget) < 0) {
+            return res.status(400).json({ success: false, message: "Budget cannot be negative." });
+        }
+        if (plannedBudget !== undefined && Number(plannedBudget) < 0) {
+            return res.status(400).json({ success: false, message: "Planned Budget cannot be negative." });
+        }
 
         // Only update defined fields
         if (name !== undefined) req.project.name = name;
@@ -194,6 +215,7 @@ export const updateProject = async (req, res) => {
         if (endDate !== undefined) req.project.endDate = endDate;
         if (description !== undefined) req.project.description = description;
         if (budget !== undefined) req.project.budget = budget;
+        if (status !== undefined) req.project.status = status;
         if (clientName !== undefined) req.project.clientName = clientName;
         if (projectCode !== undefined) req.project.projectCode = projectCode;
         if (plannedBudget !== undefined) req.project.plannedBudget = plannedBudget;
@@ -201,7 +223,7 @@ export const updateProject = async (req, res) => {
 
         await req.project.save();
 
-        return res.status(200).json({ success: true, message: "Project updated successfully (progress/status are auto-calculated)", project: req.project });
+        return res.status(200).json({ success: true, message: "Project updated successfully", project: req.project });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }

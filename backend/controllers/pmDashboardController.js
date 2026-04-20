@@ -56,10 +56,10 @@ export const getAllProjects = async (req, res) => {
             
             // Derive status for UI
             let uiStatus = "Planning";
-            if (proj.status === "In Progress") uiStatus = "In Progress";
+            if (proj.status === "Active") uiStatus = "Active";
             else if (proj.status === "Completed") uiStatus = "Completed";
             else if (proj.status === "On Hold") uiStatus = "On Hold";
-            else if (proj.status === "Not Started") uiStatus = "Planning";
+            else if (proj.status === "Planning") uiStatus = "Planning";
             
             return {
                 ...proj.toObject(),
@@ -171,6 +171,7 @@ export const getAllSafetyObservations = async (req, res) => {
         const observations = await SafetyObservation.find({ projectId: { $in: projectIds } })
             .populate("projectId", "name")
             .populate("reportedBy", "name")
+            .populate("taskId", "name")
             .sort({ createdAt: -1 });
 
         return res.status(200).json({ success: true, safetyObservations: observations });
@@ -196,7 +197,7 @@ export const holdTask = async (req, res) => {
         if (!task) return res.status(404).json({ success: false, message: "Task not found" });
 
         // Update task status
-        task.status = "Blocked";
+        task.status = "On Hold";
         await task.save();
 
         // Create safety notice

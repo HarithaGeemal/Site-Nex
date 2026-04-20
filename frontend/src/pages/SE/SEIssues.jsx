@@ -135,6 +135,19 @@ const SEIssues = () => {
         }
     };
 
+    const handleDelete = async (issueId, projectId) => {
+        if (!window.confirm("Are you sure you want to delete this issue?")) return;
+        try {
+            const { data } = await axiosClient.delete(`/projects/${projectId}/issues/${issueId}`);
+            if (data.success) {
+                alert("Issue deleted successfully");
+                await fetchAllIssues();
+            }
+        } catch (error) {
+            alert(error.response?.data?.message || "Failed to delete issue");
+        }
+    };
+
     const filteredIssues = filter === 'all' ? issues : issues.filter(i => i.status === filter);
 
     // Get tasks for selected project
@@ -200,9 +213,14 @@ const SEIssues = () => {
                                 </div>
                                 <div className="flex gap-2 shrink-0">
                                     {(issue.status === 'Open' || issue.status === 'Assigned') && (
-                                        <button onClick={() => openEditModal(issue)} className="text-steel-blue hover:bg-steel-blue/10 px-3 py-1.5 rounded text-sm font-medium transition-colors border border-steel-blue/30">
-                                            Edit
-                                        </button>
+                                        <>
+                                            <button onClick={() => openEditModal(issue)} className="text-steel-blue hover:bg-steel-blue/10 px-3 py-1.5 rounded text-sm font-medium transition-colors border border-steel-blue/30">
+                                                Edit
+                                            </button>
+                                            <button onClick={() => handleDelete(issue._id, issue.projectIdStr)} className="text-red-600 hover:bg-red-50 px-3 py-1.5 rounded text-sm font-medium transition-colors border border-red-200">
+                                                Delete
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             </div>

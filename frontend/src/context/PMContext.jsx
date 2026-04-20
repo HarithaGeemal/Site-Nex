@@ -197,14 +197,19 @@ export const PMProvider = (props) => {
                 status: project.status || 'Planning',
                 clientName: project.clientName || '',
                 projectCode: project.projectCode || '',
-                plannedBudget: parseFloat(project.plannedBudget) || 0,
+                plannedBudget: parseFloat(project.plannedBudget) || undefined,
                 assignedSiteEngineers: project.assignedSiteEngineers || [],
                 assignedStoreKeepers: project.assignedStoreKeepers || [],
                 assignedSafetyOfficers: project.assignedSafetyOfficers || [],
             };
             const { data } = await axiosClient.post('/projects', payload);
             if (data.success) await fetchProjects();
-        } catch (e) { console.error("Error creating project:", e.response?.data || e.message); }
+            return null;
+        } catch (e) {
+            const msg = e.response?.data?.message || e.message;
+            console.error("Error creating project:", msg);
+            return msg;
+        }
     };
 
     const updateProject = async (id, updated) => {
@@ -216,10 +221,18 @@ export const PMProvider = (props) => {
             if (updated.estimatedEndDate || updated.endDate) payload.endDate = updated.estimatedEndDate || updated.endDate;
             if (updated.description) payload.description = updated.description;
             if (updated.budget !== undefined) payload.budget = parseFloat(updated.budget) || 0;
+            if (updated.status) payload.status = updated.status;
+            if (updated.plannedBudget !== undefined) payload.plannedBudget = parseFloat(updated.plannedBudget) || 0;
+            if (updated.clientName !== undefined) payload.clientName = updated.clientName;
 
             await axiosClient.put(`/projects/${id}`, payload);
             await fetchProjects();
-        } catch (e) { console.error("Error updating project:", e.response?.data || e.message); }
+            return null; // no error
+        } catch (e) {
+            const msg = e.response?.data?.message || e.message;
+            console.error("Error updating project:", msg);
+            return msg;
+        }
     };
 
     const deleteProject = async (id) => {
@@ -238,7 +251,7 @@ export const PMProvider = (props) => {
     const addTask = async (task) => {
         try {
             const projectId = task.projectId;
-            if (!projectId) { alert('Please select a project.'); return; }
+            if (!projectId) return 'Please select a project.';
 
             const payload = {
                 name: task.name,
@@ -253,16 +266,17 @@ export const PMProvider = (props) => {
             };
             const { data } = await axiosClient.post(`/projects/${projectId}/tasks`, payload);
             if (data.success) await fetchTasks();
+            return null;
         } catch (e) {
             const msg = e.response?.data?.message || e.message;
             console.error("Error creating task:", msg);
-            alert('Failed to create task: ' + msg);
+            return msg;
         }
     };
 
     const updateTask = async (id, updated) => {
         const existing = tasks.find(t => t.id === id);
-        if (!existing) return;
+        if (!existing) return 'Task not found';
         try {
             const payload = {};
             if (updated.name) payload.name = updated.name;
@@ -277,10 +291,11 @@ export const PMProvider = (props) => {
 
             await axiosClient.put(`/projects/${existing.projectId}/tasks/${id}`, payload);
             await fetchTasks();
+            return null;
         } catch (e) {
             const msg = e.response?.data?.message || e.message;
             console.error("Error updating task:", msg);
-            alert('Failed to update task: ' + msg);
+            return msg;
         }
     };
 

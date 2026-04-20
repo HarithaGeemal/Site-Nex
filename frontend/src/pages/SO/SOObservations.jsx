@@ -16,13 +16,13 @@ const severityColors = {
 };
 
 const SOObservations = () => {
-    const { activeProjectId, safetyObservations, createObservation, updateObservation, deleteObservation } = useSOContext();
+    const { activeProjectId, safetyObservations, tasks, createObservation, updateObservation, deleteObservation } = useSOContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentObservation, setCurrentObservation] = useState(null);
 
     const [formData, setFormData] = useState({
         title: '', type: 'Unsafe Condition', severity: 'Medium', location: '',
-        dueDate: '', status: 'Open', notes: ''
+        dueDate: '', status: 'Open', notes: '', taskId: ''
     });
 
     const openModal = (observation = null) => {
@@ -35,13 +35,14 @@ const SOObservations = () => {
                 location: observation.location,
                 dueDate: observation.dueDate ? new Date(observation.dueDate).toISOString().split('T')[0] : '',
                 status: observation.status,
-                notes: observation.notes || ''
+                notes: observation.notes || '',
+                taskId: observation.taskId?._id || observation.taskId || ''
             });
         } else {
             setCurrentObservation(null);
             setFormData({
                 title: '', type: 'Unsafe Condition', severity: 'Medium', location: '',
-                dueDate: '', status: 'Open', notes: ''
+                dueDate: '', status: 'Open', notes: '', taskId: ''
             });
         }
         setIsModalOpen(true);
@@ -60,15 +61,20 @@ const SOObservations = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            const payload = { ...formData };
+            if (!payload.taskId) delete payload.taskId;
+            if (!payload.dueDate) delete payload.dueDate;
+
             if (currentObservation) {
-                await updateObservation(activeProjectId, currentObservation.id, formData);
+                await updateObservation(activeProjectId, currentObservation.id, payload);
             } else {
-                await createObservation(activeProjectId, formData);
+                await createObservation(activeProjectId, payload);
             }
             closeModal();
             alert(`Observation ${currentObservation ? 'updated' : 'created'} successfully.`);
         } catch (error) {
-            alert('Failed to save observation.');
+            console.error(error);
+            alert('Failed to save observation: ' + (error.response?.data?.message || 'Check connection.'));
         }
     };
 
@@ -123,6 +129,9 @@ const SOObservations = () => {
                         </div>
 
                         <p className="text-sm text-gray-600 mb-2 truncate"><strong>Location:</strong> {obs.location}</p>
+                        {obs.taskId && (
+                            <p className="text-sm text-gray-600 mb-2"><strong>Task:</strong> <span className="text-steel-blue font-medium">{obs.taskId?.name || 'Linked Task'}</span></p>
+                        )}
                         {obs.dueDate && <p className="text-sm text-gray-600 mb-2 truncate"><strong>Due:</strong> {new Date(obs.dueDate).toLocaleDateString()}</p>}
                         
                         <p className="text-xs text-gray-500 line-clamp-2 mt-2 flex-grow">{obs.notes}</p>
@@ -173,6 +182,14 @@ const SOObservations = () => {
                             </div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
                                 <input type="text" name="location" value={formData.location} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" />
+                            </div>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Related Task (Optional)</label>
+                                <select name="taskId" value={formData.taskId} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2">
+                                    <option value="">-- No specific task --</option>
+                                    {tasks.filter(t => t.status !== 'Completed' && t.status !== 'Cancelled').map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>

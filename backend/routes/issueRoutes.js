@@ -18,6 +18,7 @@ import {
     assignIssue,
     resolveIssue,
     closeIssue,
+    deleteIssue,
 } from "../controllers/issueController.js";
 
 const router = express.Router();
@@ -38,5 +39,6 @@ router.patch("/:issueId/close", loadIssueMw, authorizeProjectAccess("PROJECT_MAN
 // Generic single-issue routes
 router.get("/:issueId", loadIssueMw, authorizeProjectAccess("STORE_KEEPER"), getIssueById);
 router.put("/:issueId", loadIssueMw, validateRequest({ body: updateIssueSchema }), authorizeProjectAccess("SITE_ENGINEER"), updateIssue);
+router.delete("/:issueId", loadIssueMw, authorizeProjectAccess("SITE_ENGINEER"), deleteIssue);
 
 export default router;

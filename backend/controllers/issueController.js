@@ -233,3 +233,23 @@ export const closeIssue = async (req, res) => {
         return res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// @desc    Delete an issue
+// @route   DELETE /api/projects/:projectId/issues/:id
+// @access  Site Engineer (who created it) or Project Manager
+export const deleteIssue = async (req, res) => {
+    try {
+        const isCreator = req.issue.createdBy.toString() === req.user._id.toString();
+        const isManager = req.user.userRole === "ADMIN" || req.user.userRole === "PROJECT_MANAGER";
+        
+        if (!isCreator && !isManager) {
+            return res.status(403).json({ success: false, message: "Only the user who created this issue or a project manager can delete it" });
+        }
+
+        await req.issue.deleteOne();
+
+        return res.status(200).json({ success: true, message: "Issue deleted successfully" });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};

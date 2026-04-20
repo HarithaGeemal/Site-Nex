@@ -22,6 +22,13 @@ import Issues from "./pages/PM/Issues";
 import DailyReports from "./pages/PM/DailyReports";
 import SafetyNotices from "./pages/PM/SafetyNotices";
 import ToolsEquipment from './pages/PM/ToolsEquipment';
+import RiskAssessmentForm from './pages/PM/RiskAssessmentForm';
+
+import AdminLayout from './layouts/AdminLayout';
+import { AdminProvider } from './context/AdminContext';
+import AdminDashboard from './pages/Admin/AdminDashboard';
+import UserManagement from './pages/Admin/UserManagement';
+import RiskAnalysis from './pages/Admin/RiskAnalysis';
 
 import SEDashboard from "./pages/SE/SEDashboard";
 import SETasks from "./pages/SE/SETasks";
@@ -82,8 +89,19 @@ const App = () => {
                     <Route path="workers" element={<Workers />} />
                     <Route path="issues" element={<Issues />} />
                     <Route path="tools" element={<ToolsEquipment />} />
+                    <Route path="risk-assessment" element={<RiskAssessmentForm />} />
                     <Route path="reports" element={<DailyReports />} />
                     <Route path="safety" element={<SafetyNotices />} />
+                </Route>
+
+                {/* Protected Admin Routes */}
+                <Route path="/admin" element={
+                    <PrivateRoute><AdminProvider><AdminLayout /></AdminProvider></PrivateRoute>
+                }>
+                    <Route index element={<Navigate to="dashboard" replace />} />
+                    <Route path="dashboard" element={<AdminDashboard />} />
+                    <Route path="users" element={<UserManagement />} />
+                    <Route path="risk-analysis" element={<RiskAnalysis />} />
                 </Route>
 
                 {/* Protected SE Routes — wrapped in SEProvider */}

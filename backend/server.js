@@ -22,6 +22,8 @@ import materialRequestRoutes from './routes/materialRequestRoutes.js';
 import safetyDashboardRoutes from './routes/safetyDashboardRoutes.js';
 import pmDashboardRoutes from './routes/pmDashboardRoutes.js';
 import seDashboardRoutes from './routes/seDashboardRoutes.js';
+import adminDashboardRoutes from './routes/adminDashboardRoutes.js';
+import riskAssessmentRoutes from './routes/riskAssessmentRoutes.js';
 import workerRoutes from './routes/workerRoutes.js';
 import workerPortalRoutes from './routes/workerPortalRoutes.js';
 
@@ -86,6 +88,10 @@ app.use('/api/materials', express.json(), materialCatalogRoutes);
 app.use('/api/pm', pmDashboardRoutes);
 app.use('/api/se', seDashboardRoutes);
 app.use('/api/worker', workerPortalRoutes);
+
+// Admin & Risk Assessment endpoints
+app.use('/api/admin', adminDashboardRoutes);
+app.use('/api/risk-assessments', riskAssessmentRoutes);
 
 app.get('/', (req, res) => {
     res.send('SiteNex Backend is running!');

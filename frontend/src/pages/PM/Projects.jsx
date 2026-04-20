@@ -14,6 +14,7 @@ const Projects = () => {
     const [projectToDelete, setProjectToDelete] = useState(null);
     const [currentProject, setCurrentProject] = useState(null);
     const [filterStatus, setFilterStatus] = useState('All');
+    const [formErrors, setFormErrors] = useState({});
 
     const [formData, setFormData] = useState({
         name: '', location: '', startDate: '', estimatedEndDate: '',
@@ -40,6 +41,7 @@ const Projects = () => {
         : projects.filter(p => p.status === filterStatus);
 
     const openModal = (project = null) => {
+        setFormErrors({});
         if (project) { 
             setCurrentProject(project); 
             setFormData({
@@ -56,11 +58,15 @@ const Projects = () => {
         setIsModalOpen(true);
     };
 
-    const closeModal = () => { setIsModalOpen(false); setCurrentProject(null); };
+    const closeModal = () => { setIsModalOpen(false); setCurrentProject(null); setFormErrors({}); };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        // Clear error for this field when user types
+        if (formErrors[name]) {
+            setFormErrors(prev => ({ ...prev, [name]: null }));
+        }
     };
 
     const handleToggleAssignment = (field, userId) => {
@@ -76,29 +82,45 @@ const Projects = () => {
         });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        
-        // Validations
+        setFormErrors({});
+        const errors = {};
+
+        // Frontend validations
         const codeRegex = /^[A-Za-z0-9-_]+$/;
         if (formData.projectCode && !codeRegex.test(formData.projectCode)) {
-            return alert('Validation Error: Project Code must be alphanumeric (dashes and underscores allowed, no spaces).');
+            errors.projectCode = 'Project Code must be alphanumeric (dashes and underscores allowed, no spaces).';
         }
         
         if (formData.startDate && formData.estimatedEndDate) {
             if (new Date(formData.estimatedEndDate) <= new Date(formData.startDate)) {
-                return alert('Validation Error: Estimated End Date must be after the Start Date.');
+                errors.estimatedEndDate = 'Estimated End Date must be after the Start Date.';
             }
         }
         if (formData.budget && Number(formData.budget) < 0) {
-            return alert('Validation Error: Budget cannot be negative.');
+            errors.budget = 'Budget cannot be negative.';
         }
         if (formData.plannedBudget && Number(formData.plannedBudget) < 0) {
-            return alert('Validation Error: Planned Budget cannot be negative.');
+            errors.plannedBudget = 'Planned Budget cannot be negative.';
         }
 
-        if (currentProject) updateProject(currentProject.id, formData);
-        else addProject(formData);
+        if (Object.keys(errors).length > 0) {
+            setFormErrors(errors);
+            return;
+        }
+
+        let backendError;
+        if (currentProject) {
+            backendError = await updateProject(currentProject.id, formData);
+        } else {
+            backendError = await addProject(formData);
+        }
+
+        if (backendError) {
+            setFormErrors({ _general: backendError });
+            return;
+        }
         closeModal();
     };
 
@@ -111,6 +133,16 @@ const Projects = () => {
             deleteProject(projectToDelete);
             setProjectToDelete(null);
         }
+    };
+
+    // Inline error component
+    const FieldError = ({ field }) => {
+        const error = formErrors[field];
+        if (!error) return null;
+        return <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
+            <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+            {error}
+        </p>;
     };
 
     return (
@@ -234,14 +266,47 @@ const Projects = () => {
                             <h3 className="text-lg font-semibold text-gray-800">{currentProject ? 'Edit Project' : 'Add New Project'}</h3>
                             <button onClick={closeModal} className="text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
                         </div>
+
+                        {/* General backend error */}
+                        {formErrors._general && (
+                            <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
+                                <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                                {formErrors._general}
+                            </div>
+                        )}
+
                         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" /></div>
-                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Location</label><input type="text" name="location" value={formData.location} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" /></div>
-                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label><input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
-                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Est. End Date</label><input type="date" name="estimatedEndDate" value={formData.estimatedEndDate} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
-                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Budget ($)</label><input type="number" name="budget" value={formData.budget} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" /></div>
-                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Planned Budget ($)</label><input type="number" name="plannedBudget" value={formData.plannedBudget || ''} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" placeholder="Optional" /></div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                                    <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" />
+                                    <FieldError field="name" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                                    <input type="text" name="location" value={formData.location} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" />
+                                    <FieldError field="location" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                                    <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" />
+                                    <FieldError field="startDate" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Est. End Date</label>
+                                    <input type="date" name="estimatedEndDate" value={formData.estimatedEndDate} onChange={handleChange} required className={`w-full border rounded px-3 py-2 ${formErrors.estimatedEndDate ? 'border-red-400 bg-red-50' : 'border-gray-300'}`} />
+                                    <FieldError field="estimatedEndDate" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Budget ($)</label>
+                                    <input type="number" name="budget" value={formData.budget} onChange={handleChange} className={`w-full border rounded px-3 py-2 ${formErrors.budget ? 'border-red-400 bg-red-50' : 'border-gray-300'}`} />
+                                    <FieldError field="budget" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Planned Budget ($)</label>
+                                    <input type="number" name="plannedBudget" value={formData.plannedBudget || ''} onChange={handleChange} className={`w-full border rounded px-3 py-2 ${formErrors.plannedBudget ? 'border-red-400 bg-red-50' : 'border-gray-300'}`} placeholder="Optional" />
+                                    <FieldError field="plannedBudget" />
+                                </div>
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                                     <select name="status" value={formData.status} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none">
                                         <option value="Planning">Planning</option>
@@ -251,7 +316,24 @@ const Projects = () => {
                                     </select>
                                 </div>
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label><input type="text" name="clientName" value={formData.clientName || ''} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" placeholder="Optional" /></div>
-                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Project Code</label><input type="text" name="projectCode" value={formData.projectCode || ''} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none" placeholder="Optional" /></div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Code</label>
+                                    <input
+                                        type="text"
+                                        name="projectCode"
+                                        value={formData.projectCode || ''}
+                                        onChange={handleChange}
+                                        disabled={!!currentProject}
+                                        className={`w-full border rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none ${
+                                            currentProject
+                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60 border-gray-200'
+                                                : formErrors.projectCode ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                                        }`}
+                                        placeholder={currentProject ? 'Cannot edit' : 'Optional'}
+                                    />
+                                    {currentProject && <p className="text-xs text-gray-400 mt-1 italic">Project Code cannot be changed after creation.</p>}
+                                    <FieldError field="projectCode" />
+                                </div>
                                 
                                 <div className="col-span-1 md:col-span-2 border-t pt-4 mt-2">
                                     <h4 className="text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">Team Assignments</h4>
@@ -329,7 +411,10 @@ const Projects = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea name="description" value={formData.description} onChange={handleChange} rows="3" required className="w-full border border-gray-300 rounded px-3 py-2" /></div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                <textarea name="description" value={formData.description} onChange={handleChange} rows="3" required className="w-full border border-gray-300 rounded px-3 py-2" />
+                            </div>
                         </form>
                         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end space-x-3">
                             <button type="button" onClick={closeModal} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium">Cancel</button>

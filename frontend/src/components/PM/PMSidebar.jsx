@@ -24,6 +24,7 @@ const PMSidebar = () => {
                 <Link to="/pm/workers" className="p-3 hover:bg-concrete/40 rounded transition-colors text-sm font-medium">Workers</Link>
                 <Link to="/pm/issues" className="p-3 hover:bg-concrete/40 rounded transition-colors text-sm font-medium">Issues</Link>
                 <Link to="/pm/tools" className="p-3 hover:bg-concrete/40 rounded transition-colors text-sm font-medium">Tools & Equipment</Link>
+                <Link to="/pm/risk-assessment" className="p-3 hover:bg-concrete/40 rounded transition-colors text-sm font-medium">Risk Assessment</Link>
                 <Link to="/pm/reports" className="p-3 hover:bg-concrete/40 rounded transition-colors text-sm font-medium">Daily Reports</Link>
                 <Link to="/pm/safety" className="p-3 hover:bg-concrete/40 rounded transition-colors text-sm font-medium">Safety & Notices</Link>
             </nav>

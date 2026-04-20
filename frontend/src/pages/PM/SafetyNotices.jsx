@@ -239,7 +239,7 @@ const SafetyNotices = () => {
                                     required
                                 >
                                     <option value="">-- Select a Task --</option>
-                                    {tasks.filter(t => t.projectId === holdObservation?.projectId && t.status !== 'Completed' && t.status !== 'Blocked').map(t => (
+                                    {tasks.filter(t => t.projectId === holdObservation?.projectId && t.status !== 'Completed' && t.status !== 'On Hold' && t.status !== 'Cancelled').map(t => (
                                         <option key={t.id} value={t.id}>{t.name}</option>
                                     ))}
                                 </select>

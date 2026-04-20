@@ -25,11 +25,17 @@ export const createTask = async (req, res) => {
                 message: "startDate must be before endDate"
             });
         }
-        // Validate task dates fit within project dates
-        if (new Date(startDate) < new Date(req.project.startDate) || new Date(endDate) > new Date(req.project.endDate)) {
+        // Validate task dates fit within project dates (compare date-only, ignoring time/timezone)
+        const toDateOnly = (d) => new Date(new Date(d).toISOString().split("T")[0]);
+        const taskStart = toDateOnly(startDate);
+        const taskEnd = toDateOnly(endDate);
+        const projStart = toDateOnly(req.project.startDate);
+        const projEnd = toDateOnly(req.project.endDate);
+
+        if (taskStart < projStart || taskEnd > projEnd) {
             return res.status(400).json({
                 success: false,
-                message: `Task dates must be within the project range (${req.project.startDate.toISOString().split("T")[0]} → ${req.project.endDate.toISOString().split("T")[0]})`,
+                message: "Task timeline should be within the project timeline.",
             });
         }
 
@@ -53,7 +59,7 @@ export const createTask = async (req, res) => {
             if (parentTask.projectId.toString() !== projectId.toString()) {
                 return res.status(400).json({ success: false, message: "Subtasks must belong to the same project as their parent task." });
             }
-            
+
             // Subtask workers must be purely a subset of the parent task's workers
             if (assignedWorkers && assignedWorkers.length > 0) {
                 const parentWorkerIds = parentTask.assignedWorkers.map(w => w.toString());
@@ -137,13 +143,14 @@ export const updateTask = async (req, res) => {
 
         // Validate date bounds against the project if modifying dates
         if (startDate || endDate) {
-            const finalStart = new Date(startDate || req.task.startDate);
-            const finalEnd = new Date(endDate || req.task.endDate);
+            const toDateOnly = (d) => new Date(new Date(d).toISOString().split("T")[0]);
+            const finalStart = toDateOnly(startDate || req.task.startDate);
+            const finalEnd = toDateOnly(endDate || req.task.endDate);
 
-            if (finalStart < new Date(req.project.startDate) || finalEnd > new Date(req.project.endDate)) {
+            if (finalStart < toDateOnly(req.project.startDate) || finalEnd > toDateOnly(req.project.endDate)) {
                 return res.status(400).json({
                     success: false,
-                    message: `Task dates must be within the project range (${req.project.startDate.toISOString().split("T")[0]} → ${req.project.endDate.toISOString().split("T")[0]})`,
+                    message: "Task timeline should be within the project timeline.",
                 });
             }
         }
@@ -213,7 +220,11 @@ export const updateTask = async (req, res) => {
         if (assignedStoreKeepers !== undefined) req.task.assignedStoreKeepers = assignedStoreKeepers;
 
         // If trying to complete task, ensure no open issues exist
-        if (req.task.status === "Completed" || req.task.percentComplete === 100) {
+        // Only apply this check when status is CHANGING to Completed or percentComplete is CHANGING to 100
+        const isBeingCompleted = (status === "Completed" && req.task.status !== "Completed") ||
+            (percentComplete === 100 && req.task.percentComplete !== 100);
+
+        if (isBeingCompleted) {
             const openIssuesCount = await Issue.countDocuments({
                 taskId: req.task._id,
                 status: { $nin: ["Resolved", "Closed"] },
@@ -255,10 +266,10 @@ export const cancelTask = async (req, res) => {
 
         // Fetch assignments to log
         const assignments = await TaskAssignment.find({ taskId: req.task._id });
-        
+
         const logs = [];
         logs.push({ entityType: "Task", entityId: req.task._id, entityName: req.task.name, deletedBy: deletedByUserId, reason: reason || "Not specified" });
-        
+
         assignments.forEach(a => logs.push({ entityType: "TaskAssignment", entityId: a._id, deletedBy: deletedByUserId, reason: "Parent task deleted" }));
 
         if (logs.length > 0) {
@@ -328,7 +339,7 @@ export const requestCompletion = async (req, res) => {
 export const approveCompletion = async (req, res) => {
     try {
         const { note } = req.body;
-        
+
         // Strict Authorization: SEs can approve Subtasks but NOT Main Tasks
         if (!req.task.parentTaskId) {
             // It's a Main Task

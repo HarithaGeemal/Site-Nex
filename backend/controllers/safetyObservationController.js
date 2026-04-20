@@ -8,6 +8,7 @@ export const getObservations = async (req, res) => {
     try {
         const observations = await SafetyObservation.find({ projectId: req.project._id })
             .populate("reportedBy", "name email")
+            .populate("taskId", "name")
             .sort({ createdAt: -1 });
         return res.status(200).json({ success: true, observations });
     } catch (error) {
@@ -21,7 +22,8 @@ export const getObservations = async (req, res) => {
 export const getObservationById = async (req, res) => {
     try {
         const observation = await SafetyObservation.findOne({ _id: req.params.observationId, projectId: req.project._id })
-            .populate("reportedBy", "name email");
+            .populate("reportedBy", "name email")
+            .populate("taskId", "name");
         if (!observation) return res.status(404).json({ success: false, message: "Observation not found" });
         return res.status(200).json({ success: true, observation });
     } catch (error) {
