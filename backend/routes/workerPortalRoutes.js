@@ -8,6 +8,8 @@ import HazardReport from "../models/hazardReport.js";
 import SafetyNotice from "../models/safetyNotice.js";
 import MaterialRequest from "../models/materialRequest.js";
 import Timesheet from "../models/timesheet.js";
+import PermitToWork from "../models/permitToWork.js";
+import { startSubtask } from "../controllers/subtaskController.js";
 
 const router = express.Router();
 
@@ -37,9 +39,25 @@ router.get("/dashboard", async (req, res) => {
         // Subtasks assigned strictly to these worker IDs
         const assignedSubtasks = await Subtask.find({
             assignedWorkers: { $in: workerIds },
-            status: { $in: ["Pending", "In Progress", "Review"] } // Active subtasks
-        }).populate("taskId", "name projectId")
-          .populate("projectId", "name");
+            status: { $in: ["Not Started", "Pending", "In Progress", "Review"] } // Active subtasks
+        }).populate("parentTaskId", "name projectId")
+            .populate("projectId", "name")
+            .lean();
+
+        // Fetch PTWs for these subtasks (safe - won't break dashboard if PTW fails)
+        let subtasksWithPtw = assignedSubtasks;
+        try {
+            const subtaskIds = assignedSubtasks.map(s => s._id);
+            const ptws = await PermitToWork.find({ taskId: { $in: subtaskIds } }).lean();
+
+            // Attach PTW to each subtask
+            subtasksWithPtw = assignedSubtasks.map(sub => {
+                const ptw = ptws.find(p => p.taskId.toString() === sub._id.toString());
+                return { ...sub, ptw: ptw || null };
+            });
+        } catch (ptwErr) {
+            console.error("PTW fetch failed (non-critical):", ptwErr.message);
+        }
 
         // Main tasks where the worker might be assigned
         const assignedTasks = await Task.find({
@@ -52,7 +70,7 @@ router.get("/dashboard", async (req, res) => {
             success: true,
             projectsCount: workerProfiles.length,
             assignedTasks,
-            assignedSubtasks,
+            assignedSubtasks: subtasksWithPtw,
         });
 
     } catch (error) {
@@ -112,7 +130,7 @@ router.patch("/subtasks/:subtaskId/request-completion", async (req, res) => {
         const workerProfiles = await Worker.find({ userId: req.user._id });
         const workerIds = workerProfiles.map(w => w._id);
 
-        const subtask = await Subtask.findOne({ 
+        const subtask = await Subtask.findOne({
             _id: subtaskId,
             assignedWorkers: { $in: workerIds }
         });
@@ -122,7 +140,6 @@ router.patch("/subtasks/:subtaskId/request-completion", async (req, res) => {
         }
 
         // Validate PTW blockage exactly like the SE endpoint
-        const PermitToWork = (await import("../models/permitToWork.js")).default;
         const deniedPtw = await PermitToWork.findOne({ taskId: subtaskId, status: "Denied" });
         if (deniedPtw) {
             return res.status(403).json({ success: false, message: "Cannot request completion: The Permit to Work for this subtask was explicitly denied by the Safety Officer." });
@@ -145,6 +162,11 @@ router.patch("/subtasks/:subtaskId/request-completion", async (req, res) => {
     }
 });
 
+// @desc    Worker starts their assigned subtask
+// @route   PATCH /api/worker/subtasks/:subtaskId/start
+// @access  Worker
+router.patch("/subtasks/:subtaskId/start", startSubtask);
+
 // ==========================================
 // MATERIAL REQUESTS (Worker -> SE -> StoreKeeper)
 // ==========================================
@@ -160,7 +182,7 @@ router.get("/material-requests", async (req, res) => {
             .populate("materialItemId", "name unit")
             .populate("toolId", "name serialNumber")
             .sort({ createdAt: -1 });
-            
+
         return res.status(200).json({ success: true, requests });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -172,7 +194,7 @@ router.get("/material-requests", async (req, res) => {
 // @access  Worker
 router.post("/material-requests", async (req, res) => {
     try {
-        const { taskId, items, notes } = req.body; 
+        const { taskId, items, notes } = req.body;
 
         if (!taskId) return res.status(400).json({ success: false, message: "Target Task ID required." });
         if (!items || !items.length) return res.status(400).json({ success: false, message: "No items provided." });
@@ -180,7 +202,7 @@ router.post("/material-requests", async (req, res) => {
         // Verify task assignment
         const workerProfiles = await Worker.find({ userId: req.user._id });
         const workerIds = workerProfiles.map(w => w._id);
-        
+
         // Find if they are assigned to the Subtask or the Main Task
         const [subtask, mainTask] = await Promise.all([
             Subtask.findOne({ _id: taskId, assignedWorkers: { $in: workerIds } }),
@@ -216,7 +238,7 @@ router.post("/material-requests", async (req, res) => {
 router.delete("/material-requests/:id", async (req, res) => {
     try {
         const reqDoc = await MaterialRequest.findOne({ _id: req.params.id, requestedBy: req.user._id });
-        
+
         if (!reqDoc) return res.status(404).json({ success: false, message: "Request not found" });
         if (reqDoc.status !== "Pending SE Approval") {
             return res.status(403).json({ success: false, message: "Cannot delete. Request is already being processed." });

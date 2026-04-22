@@ -6,6 +6,8 @@ import MaterialUsageLog from "../models/materialUsageLog.js";
 import ProjectMembership from "../models/projectMembership.js";
 import MaterialService from "./materialService.js";
 import DeletionLog from "../models/deletionLog.js";
+import Worker from "../models/worker.js";
+import Timesheet from "../models/timesheet.js";
 
 /**
  * Service to handle complex Project operations separated from the controller layer.
@@ -87,7 +89,7 @@ class ProjectService {
 
         const logs = [];
         logs.push({ entityType: "Project", entityId: projectId, entityName: project.name, deletedBy: deletedByUserId, reason: deletionReason || "Not specified" });
-        
+
         tasks.forEach(t => logs.push({ entityType: "Task", entityId: t._id, entityName: t.name, deletedBy: deletedByUserId, reason: "Parent project deleted" }));
         assignments.forEach(a => logs.push({ entityType: "TaskAssignment", entityId: a._id, deletedBy: deletedByUserId, reason: "Parent project deleted" }));
         memberships.forEach(m => logs.push({ entityType: "ProjectMembership", entityId: m._id, deletedBy: deletedByUserId, reason: "Parent project deleted" }));
@@ -103,6 +105,8 @@ class ProjectService {
         await Issue.deleteMany({ projectId });
         await ProjectMembership.deleteMany({ projectId });
         await MaterialUsageLog.deleteMany({ projectId });
+        await Worker.deleteMany({ projectId });
+        await Timesheet.deleteMany({ projectId });
         await Project.deleteOne({ _id: projectId });
 
         return project;

@@ -175,7 +175,11 @@ const Issues = () => {
                             <span className={`px-2 py-1 text-xs font-semibold rounded-full shrink-0 ${statusColors[issue.status] || 'bg-gray-100 text-gray-600'}`}>{issue.status}</span>
                         </div>
 
-                        <p className="text-xs text-blue-600 font-medium mb-1">{getProjectName(issue.projectId)}</p>
+                        <p className="text-xs text-blue-600 font-medium mb-1">
+                            {getProjectName(issue.projectId)}
+                            {issue.taskName && <span className="text-gray-500"> &middot; Task: <span className="text-indigo-600">{issue.taskName}</span></span>}
+                            {issue.reportedLocation && <span className="text-gray-500"> &middot; Location: <span className="text-gray-700">{issue.reportedLocation}</span></span>}
+                        </p>
                         <p className="text-sm text-gray-500 flex-1 mb-3 line-clamp-3">{issue.description}</p>
 
                         <div className="space-y-1.5 text-sm">

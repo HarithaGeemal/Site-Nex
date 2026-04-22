@@ -42,14 +42,14 @@ const Projects = () => {
 
     const openModal = (project = null) => {
         setFormErrors({});
-        if (project) { 
-            setCurrentProject(project); 
+        if (project) {
+            setCurrentProject(project);
             setFormData({
                 ...project,
                 assignedSiteEngineers: project.assignedSiteEngineers || [],
                 assignedStoreKeepers: project.assignedStoreKeepers || [],
                 assignedSafetyOfficers: project.assignedSafetyOfficers || []
-            }); 
+            });
         }
         else {
             setCurrentProject(null);
@@ -92,7 +92,7 @@ const Projects = () => {
         if (formData.projectCode && !codeRegex.test(formData.projectCode)) {
             errors.projectCode = 'Project Code must be alphanumeric (dashes and underscores allowed, no spaces).';
         }
-        
+
         if (formData.startDate && formData.estimatedEndDate) {
             if (new Date(formData.estimatedEndDate) <= new Date(formData.startDate)) {
                 errors.estimatedEndDate = 'Estimated End Date must be after the Start Date.';
@@ -127,7 +127,7 @@ const Projects = () => {
     const handleDeleteRequest = (id) => {
         setProjectToDelete(id);
     };
-    
+
     const confirmDelete = () => {
         if (projectToDelete) {
             deleteProject(projectToDelete);
@@ -140,7 +140,7 @@ const Projects = () => {
         const error = formErrors[field];
         if (!error) return null;
         return <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
-            <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+            <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
             {error}
         </p>;
     };
@@ -270,7 +270,7 @@ const Projects = () => {
                         {/* General backend error */}
                         {formErrors._general && (
                             <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
-                                <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                                <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
                                 {formErrors._general}
                             </div>
                         )}
@@ -324,17 +324,16 @@ const Projects = () => {
                                         value={formData.projectCode || ''}
                                         onChange={handleChange}
                                         disabled={!!currentProject}
-                                        className={`w-full border rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none ${
-                                            currentProject
+                                        className={`w-full border rounded px-3 py-2 focus:ring-2 focus:ring-steel-blue/30 focus:border-steel-blue outline-none ${currentProject
                                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60 border-gray-200'
                                                 : formErrors.projectCode ? 'border-red-400 bg-red-50' : 'border-gray-300'
-                                        }`}
+                                            }`}
                                         placeholder={currentProject ? 'Cannot edit' : 'Optional'}
                                     />
                                     {currentProject && <p className="text-xs text-gray-400 mt-1 italic">Project Code cannot be changed after creation.</p>}
                                     <FieldError field="projectCode" />
                                 </div>
-                                
+
                                 <div className="col-span-1 md:col-span-2 border-t pt-4 mt-2">
                                     <h4 className="text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">Team Assignments</h4>
                                     {!!currentProject && <p className="text-xs text-orange-500 mb-3">⚠ Assignments are set at creation. Edit is disabled.</p>}

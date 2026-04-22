@@ -122,3 +122,88 @@ export const approveSubtaskCompletion = async (req, res) => {
         return res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// @desc    Update a subtask (SE)
+// @route   PUT /api/se/projects/:projectId/tasks/:taskId/subtasks/:subtaskId
+// @access  Site Engineer
+export const updateSubtask = async (req, res) => {
+    try {
+        const { subtaskId } = req.params;
+        const { name, description, assignedWorkers, startDate, endDate, priority } = req.body;
+
+        if (!isValidId(subtaskId)) return res.status(400).json({ success: false, message: "Invalid subtask ID" });
+
+        const subtask = await Subtask.findOne({ _id: subtaskId, projectId: req.params.projectId });
+        if (!subtask) return res.status(404).json({ success: false, message: "Subtask not found" });
+
+        if (name) subtask.name = name;
+        if (description) subtask.description = description;
+        if (assignedWorkers) subtask.assignedWorkers = assignedWorkers;
+        if (startDate) subtask.startDate = startDate;
+        if (endDate) subtask.endDate = endDate;
+        if (priority) subtask.priority = priority;
+
+        await subtask.save();
+
+        return res.status(200).json({ success: true, message: "Subtask updated successfully.", subtask });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Delete a subtask (SE)
+// @route   DELETE /api/se/projects/:projectId/tasks/:taskId/subtasks/:subtaskId
+// @access  Site Engineer
+export const deleteSubtask = async (req, res) => {
+    try {
+        const { subtaskId } = req.params;
+
+        if (!isValidId(subtaskId)) return res.status(400).json({ success: false, message: "Invalid subtask ID" });
+
+        const subtask = await Subtask.findOne({ _id: subtaskId, projectId: req.params.projectId });
+        if (!subtask) return res.status(404).json({ success: false, message: "Subtask not found" });
+
+        await subtask.deleteOne();
+
+        return res.status(200).json({ success: true, message: "Subtask deleted successfully." });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Start a subtask (Worker)
+// @route   PATCH /api/worker/subtasks/:subtaskId/start
+// @access  Worker
+export const startSubtask = async (req, res) => {
+    try {
+        const { subtaskId } = req.params;
+
+        if (!isValidId(subtaskId)) return res.status(400).json({ success: false, message: "Invalid subtask ID" });
+
+        const subtask = await Subtask.findById(subtaskId);
+        if (!subtask) return res.status(404).json({ success: false, message: "Subtask not found" });
+
+        const PermitToWork = (await import("../models/permitToWork.js")).default;
+        
+        // 1. Check if a PTW exists for this subtask at all
+        const ptw = await PermitToWork.findOne({ taskId: subtaskId });
+        
+        // As per requirements: "sub task must PTW requested" -> If no PTW exists, we block.
+        if (!ptw) {
+            return res.status(403).json({ success: false, message: "Cannot start: A Permit to Work must be requested by your Site Engineer before starting this task." });
+        }
+
+        // 2. Check if PTW is approved
+        if (ptw.status !== "Approved") {
+            const reason = ptw.status === "Denied" ? (ptw.notes || "Rejected by Safety Officer") : "PTW is currently pending.";
+            return res.status(403).json({ success: false, message: `Cannot start: Permit to Work is not Approved. Status: ${ptw.status}. Reason: ${reason}` });
+        }
+
+        subtask.status = "In Progress";
+        await subtask.save();
+
+        return res.status(200).json({ success: true, message: "Subtask started successfully.", subtask });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};

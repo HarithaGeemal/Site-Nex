@@ -44,7 +44,7 @@ const subtaskSchema = new mongoose.Schema({
     }],
     assignedSiteEngineer: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "users",
+        ref: "User",
     },
     completionRequested: {
         type: Boolean,
@@ -55,11 +55,11 @@ const subtaskSchema = new mongoose.Schema({
     },
     completionRequestedBy: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "users",
+        ref: "User",
     },
     completionApprovedBy: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "users",
+        ref: "User",
     },
     completionApprovedAt: {
         type: Date,

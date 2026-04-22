@@ -1,10 +1,11 @@
 import express from "express";
 import { getSEDashboardMetrics, getSEAssignedTasks, getSESubtaskApprovals, getSEMaterialRequests, getSEProjects } from "../controllers/seDashboardController.js";
-import { createSubtask, requestSubtaskCompletion, approveSubtaskCompletion } from "../controllers/subtaskController.js";
+import { createSubtask, requestSubtaskCompletion, approveSubtaskCompletion, updateSubtask, deleteSubtask } from "../controllers/subtaskController.js";
 import protect from "../middlewares/authMiddleware.js";
 import Timesheet from "../models/timesheet.js";
 import Worker from "../models/worker.js";
 import Project from "../models/projects.js";
+import ProjectMembership from "../models/projectMembership.js";
 
 const router = express.Router();
 
@@ -20,6 +21,8 @@ router.get("/my-projects", getSEProjects);
 
 // Subtask Operations
 router.post("/projects/:projectId/tasks/:taskId/subtasks", createSubtask);
+router.put("/projects/:projectId/tasks/:taskId/subtasks/:subtaskId", updateSubtask);
+router.delete("/projects/:projectId/tasks/:taskId/subtasks/:subtaskId", deleteSubtask);
 router.patch("/projects/:projectId/subtasks/:subtaskId/request-completion", requestSubtaskCompletion);
 router.patch("/projects/:projectId/subtasks/:subtaskId/approve-completion", approveSubtaskCompletion);
 
@@ -35,15 +38,14 @@ router.get("/material-requests", getSEMaterialRequests);
 // @access  Site Engineer
 router.get("/pending-timesheets", async (req, res) => {
     try {
-        // Find projects the SE is assigned to via ProjectMembership or direct project fields
-        const projects = await Project.find({
-            $or: [
-                { assignedSiteEngineers: req.user._id },
-                { projectManager: req.user._id }
-            ]
-        }).select("_id");
+        // Find projects the SE is assigned to via ProjectMembership
+        const memberships = await ProjectMembership.find({ 
+            userId: req.user._id, 
+            $or: [{ role: "SITE_ENGINEER" }, { role: "PROJECT_MANAGER" }],
+            removedAt: null 
+        }).select("projectId");
 
-        const projectIds = projects.map(p => p._id);
+        const projectIds = memberships.map(m => m.projectId);
 
         const timesheets = await Timesheet.find({
             projectId: { $in: projectIds },

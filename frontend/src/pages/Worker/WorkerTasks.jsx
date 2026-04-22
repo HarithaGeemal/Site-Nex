@@ -6,7 +6,7 @@ const Calendar = ({className}) => <svg className={className} fill="none" viewBox
 const Briefcase = ({className}) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
 
 const WorkerTasks = () => {
-    const { assignedTasks, assignedSubtasks, isLoading, requestSubtaskCompletion } = useWorkerContext();
+    const { assignedTasks, assignedSubtasks, isLoading, requestSubtaskCompletion, startSubtask } = useWorkerContext();
     const [activeTab, setActiveTab] = useState('subtasks');
 
     if (isLoading) {
@@ -91,7 +91,17 @@ const WorkerTasks = () => {
                                             </div>
                                             
                                             {/* Action Button Section */}
-                                            <div className="flex-shrink-0 mt-4 md:mt-0">
+                                            <div className="flex-shrink-0 mt-4 md:mt-0 flex flex-col items-end gap-2">
+                                                {sub.ptw && (
+                                                    <span className={`text-xs font-semibold px-2 py-1 rounded border ${
+                                                        sub.ptw.status === 'Approved' ? 'bg-green-100 text-green-800 border-green-300' :
+                                                        sub.ptw.status === 'Denied' ? 'bg-red-100 text-red-800 border-red-300' :
+                                                        'bg-yellow-100 text-yellow-800 border-yellow-300'
+                                                    }`}>
+                                                        PTW: {sub.ptw.status}
+                                                    </span>
+                                                )}
+                                                
                                                 {sub.completionRequested ? (
                                                     <div className="px-4 py-2 bg-amber-50 text-amber-700 text-sm font-bold rounded-lg border border-amber-200">
                                                         Pending SE Review
@@ -112,7 +122,25 @@ const WorkerTasks = () => {
                                                     >
                                                         Request Completion
                                                     </button>
-                                                ) : null}
+                                                ) : sub.status === 'Not Started' || sub.status === 'Pending' ? (() => {
+                                                    const canStart = sub.ptw && sub.ptw.status === 'Approved';
+                                                    return (
+                                                        <button 
+                                                            onClick={() => {
+                                                                if(window.confirm("Start work on this subtask?")) {
+                                                                    startSubtask(sub._id).catch(err => alert(err.response?.data?.message || "Failed to start subtask"));
+                                                                }
+                                                            }}
+                                                            disabled={!canStart}
+                                                            title={canStart ? "Start work" : "A Permit to Work must be requested and approved by the Safety Officer before you can start."}
+                                                            className={`px-4 py-2 text-white text-sm font-bold rounded-lg shadow-sm transition-colors ${
+                                                                canStart ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'
+                                                            }`}
+                                                        >
+                                                            Start Work
+                                                        </button>
+                                                    );
+                                                })() : null}
                                             </div>
 
                                         </div>

@@ -1,4 +1,5 @@
 import { createContext, useEffect, useState, useContext, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import useAxios from "../hooks/useAxios";
 
 export const PMContext = createContext();
@@ -31,6 +32,7 @@ const backendToUIProjectStatus = {
 
 export const PMProvider = (props) => {
     const axiosClient = useAxios();
+    const location = useLocation();
 
     const [projects, setProjects] = useState([]);
     const [tasks, setTasks] = useState([]);
@@ -105,6 +107,8 @@ export const PMProvider = (props) => {
                     ...i,
                     id: i._id,
                     projectId: i.projectId?._id || i.projectId,
+                    taskName: i.taskId?.name || '',
+                    reportedLocation: i.reportedLocation || '',
                     reportedDate: i.reportedDate?.split('T')[0] || i.createdAt?.split('T')[0] || '',
                     reportedBy: typeof i.createdBy === 'object' ? i.createdBy?.name : (i.createdBy || 'User'),
                 })));
@@ -573,7 +577,7 @@ export const PMProvider = (props) => {
         fetchSafetyObservations();
         fetchStopHoldNotices();
         fetchAvailableUsers();
-    }, [fetchProjects, fetchTasks, fetchWorkers, fetchIssues, fetchDailyReports, fetchSafetyObservations, fetchStopHoldNotices, fetchAvailableUsers]);
+    }, [fetchProjects, fetchTasks, fetchWorkers, fetchIssues, fetchDailyReports, fetchSafetyObservations, fetchStopHoldNotices, fetchBlockedTasks, fetchAvailableUsers, location.pathname]);
 
     // --- Context Value ---
     const value = {

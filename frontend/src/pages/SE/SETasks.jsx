@@ -17,8 +17,9 @@ const statusColors = {
 };
 
 const SETasks = () => {
-    const { assignedTasks, createSubtask, requestMainTaskCompletion, createPTW } = useSEContext();
+    const { assignedTasks, createSubtask, updateSubtask, deleteSubtask, requestMainTaskCompletion, createPTW } = useSEContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
     const [activeParentTask, setActiveParentTask] = useState(null);
 
     const [isPtwModalOpen, setIsPtwModalOpen] = useState(false);
@@ -36,20 +37,37 @@ const SETasks = () => {
     const mainTasks = assignedTasks.filter(t => !t.parentTaskId);
     const getSubtasks = (parentId) => assignedTasks.filter(t => (t.parentTaskId?._id || t.parentTaskId) === parentId);
 
-    const openSubtaskModal = (parent) => {
+    const openSubtaskModal = (parent, subtask = null) => {
         setActiveParentTask(parent);
-        setFormData({
-            name: '', description: '', assignedWorkers: [],
-            startDate: parent.startDate ? new Date(parent.startDate).toISOString().split('T')[0] : '', 
-            endDate: parent.endDate ? new Date(parent.endDate).toISOString().split('T')[0] : '', 
-            status: 'Not Started', priority: 'Medium'
-        });
+        if (subtask) {
+            setIsEditMode(true);
+            setActiveSubtask(subtask);
+            setFormData({
+                name: subtask.name, 
+                description: subtask.description, 
+                assignedWorkers: subtask.assignedWorkers?.map(w => typeof w === 'object' ? w._id : w) || [],
+                startDate: subtask.startDate ? new Date(subtask.startDate).toISOString().split('T')[0] : '', 
+                endDate: subtask.endDate ? new Date(subtask.endDate).toISOString().split('T')[0] : '', 
+                status: subtask.status || 'Not Started', priority: subtask.priority || 'Medium'
+            });
+        } else {
+            setIsEditMode(false);
+            setActiveSubtask(null);
+            setFormData({
+                name: '', description: '', assignedWorkers: [],
+                startDate: parent.startDate ? new Date(parent.startDate).toISOString().split('T')[0] : '', 
+                endDate: parent.endDate ? new Date(parent.endDate).toISOString().split('T')[0] : '', 
+                status: 'Not Started', priority: 'Medium'
+            });
+        }
         setIsModalOpen(true);
     };
 
     const closeModal = () => {
         setIsModalOpen(false);
         setActiveParentTask(null);
+        setActiveSubtask(null);
+        setIsEditMode(false);
     };
 
     const openPtwModal = (subtask) => {
@@ -81,12 +99,28 @@ const SETasks = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await createSubtask(activeParentTask.projectId, activeParentTask.id, formData);
+            if (isEditMode) {
+                await updateSubtask(activeParentTask.projectId, activeParentTask.id, activeSubtask.id, formData);
+                alert("Subtask successfully updated.");
+            } else {
+                await createSubtask(activeParentTask.projectId, activeParentTask.id, formData);
+                alert("Subtask successfully delegated.");
+            }
             closeModal();
-            alert("Subtask successfully delegated.");
         } catch (error) {
             // Error is handled in context
-            console.error("Delegation failed");
+            console.error(isEditMode ? "Update failed" : "Delegation failed");
+        }
+    };
+
+    const handleDeleteSubtask = async (projectId, parentTaskId, subtaskId) => {
+        if (window.confirm("Are you sure you want to delete this subtask?")) {
+            try {
+                await deleteSubtask(projectId, parentTaskId, subtaskId);
+                alert("Subtask deleted successfully.");
+            } catch (err) {
+                console.error("Deletion failed");
+            }
         }
     };
 
@@ -143,11 +177,27 @@ const SETasks = () => {
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    {!mainTask.completionRequested && mainTask.status !== "Completed" && (
-                                        <button onClick={() => handleCompleteMain(mainTask)} className="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-emerald-700 shadow-sm">
-                                            Mark as Completed
-                                        </button>
-                                    )}
+                                    {!mainTask.completionRequested && mainTask.status !== "Completed" && (() => {
+                                        const allSubtasksCompleted = subtasks.length === 0 || subtasks.every(s => s.status === 'Completed');
+                                        const anySubtaskPendingPTW = subtasks.some(s => s.ptw && s.ptw.status !== 'Approved');
+                                        const canComplete = allSubtasksCompleted && !anySubtaskPendingPTW;
+                                        const tooltipMsg = !allSubtasksCompleted 
+                                            ? "All subtasks must be completed first." 
+                                            : anySubtaskPendingPTW ? "Some subtasks have pending PTWs." : "";
+                                        
+                                        return (
+                                            <button 
+                                                title={tooltipMsg}
+                                                disabled={!canComplete}
+                                                onClick={() => handleCompleteMain(mainTask)} 
+                                                className={`px-3 py-1.5 rounded text-sm font-medium shadow-sm transition-colors ${
+                                                    canComplete ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                                }`}
+                                            >
+                                                Mark as Completed
+                                            </button>
+                                        );
+                                    })()}
                                     {mainTask.completionRequested && mainTask.status !== "Completed" && (
                                         <span className="px-3 py-1.5 bg-yellow-100 text-yellow-800 rounded text-sm font-medium border border-yellow-200">
                                             Awaiting PM Approval
@@ -164,13 +214,39 @@ const SETasks = () => {
                             {/* Subtasks Section */}
                             {subtasks.length > 0 ? (
                                 <div className="p-4 bg-white">
-                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-2">Subtasks Pipeline</h4>
+                                    {/* Overall Subtask Progress */}
+                                    {(() => {
+                                        const completed = subtasks.filter(s => s.status === 'Completed').length;
+                                        const total = subtasks.length;
+                                        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+                                        return (
+                                            <div className="mb-4 px-2">
+                                                <div className="flex justify-between items-center mb-1.5">
+                                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Subtasks Pipeline</h4>
+                                                    <span className="text-xs font-bold text-gray-600">{completed}/{total} completed ({pct}%)</span>
+                                                </div>
+                                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                                    <div className={`h-2 rounded-full transition-all duration-500 ${pct === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${pct}%` }}></div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                                         {subtasks.map(sub => (
-                                            <div key={sub.id} className="border border-gray-200 rounded p-3 bg-gray-50 hover:bg-white transition-colors">
+                                            <div key={sub.id} className="border border-gray-200 rounded p-3 bg-gray-50 hover:bg-white transition-colors group">
                                                 <div className="flex justify-between items-start mb-2">
                                                     <h5 className="font-semibold text-gray-800 text-sm">{sub.name}</h5>
-                                                    <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${statusColors[sub.status] || 'bg-gray-100 text-gray-700'}`}>{sub.status}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${statusColors[sub.status] || 'bg-gray-100 text-gray-700'}`}>{sub.status}</span>
+                                                        <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button onClick={() => openSubtaskModal(mainTask, sub)} className="text-blue-500 hover:text-blue-700 p-1" title="Edit">
+                                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                            </button>
+                                                            <button onClick={() => handleDeleteSubtask(mainTask.projectId, mainTask.id, sub.id)} className="text-red-500 hover:text-red-700 p-1" title="Delete">
+                                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 <div className="flex items-center justify-between text-xs text-gray-500 mt-3 pt-2 border-t border-gray-200">
                                                     <span className="truncate max-w-[200px]">Workers: {sub.assignedWorkers?.map(w => w.name).join(', ') || 'Unassigned'}</span>
@@ -217,7 +293,7 @@ const SETasks = () => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-xl overflow-hidden">
                         <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
-                            <h3 className="text-lg font-semibold text-gray-800">Delegate Subtask</h3>
+                            <h3 className="text-lg font-semibold text-gray-800">{isEditMode ? 'Edit Subtask' : 'Delegate Subtask'}</h3>
                             <button onClick={closeModal} className="text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
                         </div>
                         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -262,7 +338,7 @@ const SETasks = () => {
                         </form>
                         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end space-x-3">
                             <button type="button" onClick={closeModal} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium">Cancel</button>
-                            <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-steel-blue text-white rounded hover:bg-steel-blue/90 font-medium">Deploy Subtask</button>
+                            <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-steel-blue text-white rounded hover:bg-steel-blue/90 font-medium">{isEditMode ? 'Save Changes' : 'Deploy Subtask'}</button>
                         </div>
                     </div>
                 </div>

@@ -32,7 +32,7 @@ const SEIssues = () => {
 
     const [formData, setFormData] = useState({
         title: '', description: '', type: 'Defect', priority: 'Medium',
-        severity: 'Medium', reportedLocation: '', taskId: '', projectId: '', dueDate: ''
+        severity: 'Medium', reportedLocation: '', taskId: '', projectId: ''
     });
 
     const fetchAllIssues = useCallback(async () => {
@@ -71,7 +71,7 @@ const SEIssues = () => {
         setEditingIssue(null);
         setFormData({
             title: '', description: '', type: 'Defect', priority: 'Medium',
-            severity: 'Medium', reportedLocation: '', taskId: '', projectId: projects[0]?._id || projects[0]?.id || '', dueDate: ''
+            severity: 'Medium', reportedLocation: '', taskId: '', projectId: projects[0]?._id || projects[0]?.id || ''
         });
         setIsModalOpen(true);
     };
@@ -87,7 +87,6 @@ const SEIssues = () => {
             reportedLocation: issue.reportedLocation || '',
             taskId: issue.taskId?._id || issue.taskId || '',
             projectId: issue.projectIdStr || '',
-            dueDate: issue.dueDate ? new Date(issue.dueDate).toISOString().split('T')[0] : '',
         });
         setIsModalOpen(true);
     };
@@ -110,7 +109,6 @@ const SEIssues = () => {
             severity: formData.severity,
             reportedLocation: formData.reportedLocation || undefined,
             taskId: formData.taskId || undefined,
-            dueDate: formData.dueDate || undefined,
         };
 
         try {
@@ -275,10 +273,7 @@ const SEIssues = () => {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                                <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" />
-                            </div>
+
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Reported Location</label>

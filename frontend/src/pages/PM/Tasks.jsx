@@ -33,6 +33,9 @@ const Tasks = () => {
         startDate: '', endDate: '', status: 'To Do', priority: 'Medium'
     });
 
+    // Get the selected project's timeline for display and validation
+    const selectedProject = projects.find(p => p.id === formData.projectId);
+
     useEffect(() => {
         const fetchMembers = async () => {
             if (!formData.projectId) {
@@ -146,6 +149,24 @@ const Tasks = () => {
         if (formData.startDate && formData.endDate) {
             if (new Date(formData.endDate) < new Date(formData.startDate)) {
                 errors.endDate = 'End Date cannot be before the Start Date.';
+            }
+        }
+
+        // Validate task dates are within project timeline
+        if (selectedProject) {
+            const projStart = new Date(selectedProject.startDate);
+            const projEnd = new Date(selectedProject.estimatedEndDate);
+            if (formData.startDate && new Date(formData.startDate) < projStart) {
+                errors.startDate = `Start Date is before the project start date (${selectedProject.startDate}).`;
+            }
+            if (formData.startDate && new Date(formData.startDate) > projEnd) {
+                errors.startDate = `Start Date is after the project end date (${selectedProject.estimatedEndDate}).`;
+            }
+            if (formData.endDate && new Date(formData.endDate) > projEnd) {
+                errors.endDate = `End Date is after the project end date (${selectedProject.estimatedEndDate}).`;
+            }
+            if (formData.endDate && new Date(formData.endDate) < projStart) {
+                errors.endDate = `End Date is before the project start date (${selectedProject.startDate}).`;
             }
         }
 
@@ -310,9 +331,21 @@ const Tasks = () => {
                                         {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                     </select>
                                 </div>
+                                {/* Project Timeline Info Banner */}
+                                {selectedProject && (
+                                    <div className="col-span-1 md:col-span-2 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-3">
+                                        <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                        <div className="text-sm">
+                                            <span className="font-semibold text-blue-800">Project Timeline:</span>
+                                            <span className="text-blue-700 ml-2">{selectedProject.startDate} → {selectedProject.estimatedEndDate}</span>
+                                            <p className="text-xs text-blue-500 mt-0.5">Task dates must fall within this range.</p>
+                                        </div>
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                                    <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="w-full border border-gray-300 rounded px-3 py-2" />
+                                    <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className={`w-full border rounded px-3 py-2 ${formErrors.startDate ? 'border-red-400 bg-red-50' : 'border-gray-300'}`} />
+                                    <FieldError field="startDate" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>

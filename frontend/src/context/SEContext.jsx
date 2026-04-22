@@ -1,10 +1,12 @@
 import { createContext, useEffect, useState, useContext, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import useAxios from "../hooks/useAxios";
 
 export const SEContext = createContext();
 
 export const SEProvider = (props) => {
     const axiosClient = useAxios();
+    const location = useLocation();
     const [projects, setProjects] = useState([]);
     const [assignedTasks, setAssignedTasks] = useState([]);
     const [subtaskApprovals, setSubtaskApprovals] = useState([]);
@@ -158,6 +160,32 @@ export const SEProvider = (props) => {
         }
     };
 
+    const updateSubtask = async (projectId, parentTaskId, subtaskId, payload) => {
+        try {
+            const { data } = await axiosClient.put(`/se/projects/${projectId}/tasks/${parentTaskId}/subtasks/${subtaskId}`, payload);
+            if (data.success) await fetchAssignedTasks();
+            return data;
+        } catch (error) {
+            console.error("Error updating subtask", error);
+            const msg = error.response?.data?.message || error.message;
+            alert('Failed to update subtask: ' + msg);
+            throw error;
+        }
+    };
+
+    const deleteSubtask = async (projectId, parentTaskId, subtaskId) => {
+        try {
+            const { data } = await axiosClient.delete(`/se/projects/${projectId}/tasks/${parentTaskId}/subtasks/${subtaskId}`);
+            if (data.success) await fetchAssignedTasks();
+            return data;
+        } catch (error) {
+            console.error("Error deleting subtask", error);
+            const msg = error.response?.data?.message || error.message;
+            alert('Failed to delete subtask: ' + msg);
+            throw error;
+        }
+    };
+
     const approveSubtask = async (projectId, taskId, note) => {
         try {
             const { data } = await axiosClient.patch(`/se/projects/${projectId}/subtasks/${taskId}/approve-completion`, { note });
@@ -223,12 +251,12 @@ export const SEProvider = (props) => {
         fetchMaterialRequests();
         fetchDailyReports();
         fetchPendingTimesheets();
-    }, [fetchProjects, fetchDashboardMetrics, fetchAssignedTasks, fetchSubtaskApprovals, fetchMaterialRequests, fetchDailyReports, fetchPendingTimesheets]);
+    }, [fetchProjects, fetchDashboardMetrics, fetchAssignedTasks, fetchSubtaskApprovals, fetchMaterialRequests, fetchDailyReports, fetchPendingTimesheets, location.pathname]);
 
     const value = {
         projects, assignedTasks, subtaskApprovals, materialRequests, dashboardMetrics, dailyReports, ptws, pendingTimesheets,
         fetchProjects, fetchDashboardMetrics, fetchAssignedTasks, fetchSubtaskApprovals, fetchMaterialRequests, fetchDailyReports, fetchPTWsByProject, fetchPendingTimesheets,
-        createSubtask, approveSubtask, requestMainTaskCompletion, addDailyReport, createPTW, approveTimesheet, rejectTimesheet
+        createSubtask, updateSubtask, deleteSubtask, approveSubtask, requestMainTaskCompletion, addDailyReport, createPTW, approveTimesheet, rejectTimesheet
     };
 
     return (

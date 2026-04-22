@@ -29,7 +29,7 @@ const Workers = () => {
     const [currentWorker, setCurrentWorker] = useState(null);
     const [filterStatus, setFilterStatus] = useState('All');
     const [filterProject, setFilterProject] = useState('All');
-    
+
     // Filter available workers from context
     const availableSystemWorkers = availableUsers.filter(u => u.role === "WORKER");
 
@@ -76,7 +76,7 @@ const Workers = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        
+
         // If selecting a registered user, auto-populate details but allow override
         if (name === "userId" && value) {
             const selectedUser = availableSystemWorkers.find(u => u.id === value);
@@ -89,7 +89,7 @@ const Workers = () => {
                 return;
             }
         }
-        
+
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 

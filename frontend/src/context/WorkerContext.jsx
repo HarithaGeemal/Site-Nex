@@ -1,10 +1,12 @@
 import { createContext, useEffect, useState, useContext, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import useAxios from "../hooks/useAxios";
 
 export const WorkerContext = createContext();
 
 export const WorkerProvider = (props) => {
     const axiosClient = useAxios();
+    const location = useLocation();
 
     const [stats, setStats] = useState({
         projectsCount: 0,
@@ -39,18 +41,30 @@ export const WorkerProvider = (props) => {
 
     useEffect(() => {
         fetchDashboard();
-    }, [fetchDashboard]);
+    }, [fetchDashboard, location.pathname]);
 
     const requestSubtaskCompletion = async (subtaskId) => {
         try {
             const { data } = await axiosClient.patch(`/worker/subtasks/${subtaskId}/request-completion`);
             if (data.success) {
-                // Instantly re-fetch the dashboard to update task statuses
                 fetchDashboard();
                 return data;
             }
         } catch (error) {
             console.error("Error requesting subtask completion:", error);
+            throw error;
+        }
+    };
+
+    const startSubtask = async (subtaskId) => {
+        try {
+            const { data } = await axiosClient.patch(`/worker/subtasks/${subtaskId}/start`);
+            if (data.success) {
+                fetchDashboard();
+                return data;
+            }
+        } catch (error) {
+            console.error("Error starting subtask:", error);
             throw error;
         }
     };
@@ -61,7 +75,8 @@ export const WorkerProvider = (props) => {
         assignedSubtasks,
         isLoading,
         fetchDashboard,
-        requestSubtaskCompletion
+        requestSubtaskCompletion,
+        startSubtask
     };
 
     return (
