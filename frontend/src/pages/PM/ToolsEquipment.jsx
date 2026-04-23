@@ -5,45 +5,24 @@ import useAxios from '../../hooks/useAxios';
 const ToolsEquipment = () => {
     const { projects, tasks } = usePMContext();
     const axiosClient = useAxios();
-    
+
     const [selectedProject, setSelectedProject] = useState('');
-    const [tools, setTools] = useState([]);
-    const [checkouts, setCheckouts] = useState([]);
-    const [members, setMembers] = useState([]);
+    const [storeReports, setStoreReports] = useState([]);
     const [loading, setLoading] = useState(false);
-    
-    // Modals
-    const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
-    const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
-    const [currentTool, setCurrentTool] = useState(null);
-    const [currentCheckout, setCurrentCheckout] = useState(null);
-    
-    const [checkoutFormData, setCheckoutFormData] = useState({ taskId: '', issuedTo: '', expectedReturnDate: '', notes: '' });
-    const [returnFormData, setReturnFormData] = useState({ returnCondition: 'Good', notes: '' });
 
     const fetchProjectData = useCallback(async (projectId) => {
         if (!projectId) {
-            setTools([]);
-            setCheckouts([]);
-            setMembers([]);
+            setStoreReports([]);
             return;
         }
         setLoading(true);
         try {
-            const [toolRes, checkoutRes, projRes] = await Promise.all([
-                axiosClient.get(`/projects/${projectId}/tools`),
-                axiosClient.get(`/projects/${projectId}/checkouts`),
-                axiosClient.get(`/projects/${projectId}`)
-            ]);
-            
-            if (toolRes.data.success) setTools(toolRes.data.tools);
-            if (checkoutRes.data.success) setCheckouts(checkoutRes.data.checkouts);
-            if (projRes.data.success && projRes.data.project.members) {
-                // Member populated user object is inside m.userId
-                setMembers(projRes.data.project.members.map(m => m.userId).filter(Boolean));
+            const { data } = await axiosClient.get(`/projects/${projectId}/store-reports`);
+            if (data.success) {
+                setStoreReports(data.reports);
             }
         } catch (error) {
-            console.error("Error fetching project tools/checkouts:", error);
+            console.error("Error fetching project store reports:", error);
         } finally {
             setLoading(false);
         }
@@ -59,74 +38,7 @@ const ToolsEquipment = () => {
         if (selectedProject) fetchProjectData(selectedProject);
     }, [selectedProject, fetchProjectData]);
 
-    // Helpers
-    const getTaskName = (id) => tasks.find(t => t.id === id || t._id === id)?.name || 'N/A';
-    const getMemberName = (id) => members.find(m => m._id === id || m.id === id)?.name || 'Unknown User';
 
-    // Checkout Logic
-    const openCheckoutModal = (tool) => {
-        if (tool.availableQuantity < 1) return alert('Tool out of stock.');
-        if (tool.isBlacklisted) return alert('This tool is blacklisted by Safety. Cannot check out.');
-        setCurrentTool(tool);
-        setCheckoutFormData({ taskId: '', issuedTo: '', expectedReturnDate: new Date().toISOString().split('T')[0], notes: '' });
-        setIsCheckoutModalOpen(true);
-    };
-
-    const handleCheckoutSubmit = async (e) => {
-        e.preventDefault();
-        
-        // Validation: Expected Return Date >= today
-        if (checkoutFormData.expectedReturnDate) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const returnDate = new Date(checkoutFormData.expectedReturnDate);
-            if (returnDate < today) {
-                return alert('Validation Error: Expected Return Date cannot be in the past.');
-            }
-        }
-
-        try {
-            const payload = { ...checkoutFormData, toolId: currentTool._id };
-            if (!payload.taskId) delete payload.taskId; // optional
-            
-            const { data } = await axiosClient.post(`/projects/${selectedProject}/checkouts`, payload);
-            if (data.success) {
-                setIsCheckoutModalOpen(false);
-                fetchProjectData(selectedProject); // Refresh lists
-            }
-        } catch (err) {
-            const msg = err.response?.data?.message || err.message;
-            alert(`Checkout Blocked:\\n${msg}`);
-        }
-    };
-
-    // Return Logic
-    const openReturnModal = (checkout) => {
-        setCurrentCheckout(checkout);
-        // Default to the condition it was before checkout
-        setReturnFormData({ returnCondition: checkout.toolId?.condition || 'Good', notes: '' });
-        setIsReturnModalOpen(true);
-    };
-
-    const handleReturnSubmit = async (e) => {
-        e.preventDefault();
-
-        // Validation: If returned Damaged/Poor, require notes
-        if (['Damaged', 'Poor'].includes(returnFormData.returnCondition) && !returnFormData.notes.trim()) {
-            return alert('Validation Error: Please provide explanatory notes when returning a tool in Poor or Damaged condition.');
-        }
-
-        try {
-            const { data } = await axiosClient.put(`/projects/${selectedProject}/checkouts/${currentCheckout._id}/return`, returnFormData);
-            if (data.success) {
-                setIsReturnModalOpen(false);
-                fetchProjectData(selectedProject); // Refresh lists
-            }
-        } catch (err) {
-            const msg = err.response?.data?.message || err.message;
-            alert(`Return Failed:\\n${msg}`);
-        }
-    };
 
     return (
         <div className="p-6 bg-concrete-light min-h-full">
@@ -138,8 +50,8 @@ const ToolsEquipment = () => {
                 </div>
                 <div className="flex items-center gap-2">
                     <label className="text-sm font-medium text-gray-700">Project:</label>
-                    <select 
-                        value={selectedProject} 
+                    <select
+                        value={selectedProject}
                         onChange={(e) => setSelectedProject(e.target.value)}
                         className="border border-gray-300 rounded px-3 py-2 text-sm bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-steel-blue"
                     >
@@ -159,239 +71,71 @@ const ToolsEquipment = () => {
                 </div>
             ) : (
                 <div className="space-y-8">
-                    
-                    {/* INVENTORY SECTION */}
+
+                    {/* STORE REPORTS SECTION */}
                     <div>
-                        <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">Project Inventory ({tools.length} tools)</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {tools.map(tool => {
-                                const stockPercent = tool.totalQuantity > 0 ? Math.round((tool.availableQuantity / tool.totalQuantity) * 100) : 0;
-                                const conditionColor = {
-                                    'New': 'bg-blue-100 text-blue-800',
-                                    'Good': 'bg-green-100 text-green-800',
-                                    'Fair': 'bg-yellow-100 text-yellow-800',
-                                    'Poor': 'bg-red-100 text-red-800',
-                                };
+                        <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">Store Keeper Reports</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {storeReports.map(r => {
+                                const itemName = r.type === 'Material' ? (r.materialItemId?.name || 'Unknown Material') : (r.mainStorageToolId?.name || 'Unknown Tool');
+                                const isReturned = r.status === 'Returned';
                                 return (
-                                <div key={tool._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col hover:shadow-md transition-shadow relative ${tool.isBlacklisted ? 'border-red-300 ring-2 ring-red-200' : 'border-concrete-light'}`}>
-                                    {/* Blacklist Banner */}
-                                    {tool.isBlacklisted && (
-                                        <div className="absolute top-0 left-0 right-0 bg-red-600 text-white text-center text-xs font-bold py-1 rounded-t-xl">
-                                            🚫 CHECKOUT BLOCKED — Blacklisted by Safety Officer
-                                        </div>
-                                    )}
-                                    
-                                    <div className={`flex justify-between items-start mb-2 ${tool.isBlacklisted ? 'mt-5' : ''}`}>
-                                        <h3 className="font-bold text-gray-800 text-sm truncate pr-2">{tool.name}</h3>
-                                        <span className={`px-2 py-0.5 text-xs font-bold rounded-full shrink-0 ${conditionColor[tool.condition] || 'bg-gray-100 text-gray-700'}`}>
-                                            {tool.condition}
-                                        </span>
-                                    </div>
-                                    
-                                    {/* Serial Number */}
-                                    <p className="text-xs text-gray-400 mb-2 font-mono">{tool.serialNumber || 'No Serial Number'}</p>
-                                    
-                                    {/* Stock Bar */}
-                                    <div className="mb-2">
-                                        <div className="flex justify-between text-xs mb-1">
-                                            <span className="text-concrete font-medium">Available Stock</span>
-                                            <span className={`font-bold ${stockPercent === 0 ? 'text-red-600' : stockPercent < 30 ? 'text-orange-600' : 'text-green-700'}`}>
-                                                {tool.availableQuantity} / {tool.totalQuantity}
+                                    <div key={r._id} className="bg-white rounded-xl shadow-sm border border-concrete-light p-5 flex flex-col hover:shadow-md transition-shadow">
+                                        {/* Header */}
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex flex-col">
+                                                <span className={`w-max px-2 py-0.5 text-xs font-bold uppercase tracking-wider rounded-full mb-2 ${r.type === 'Material' ? 'bg-orange-100 text-orange-800' : 'bg-steel-blue/10 text-steel-blue'}`}>
+                                                    {r.type === 'Material' ? '🧱 Material' : '🔧 Tool'}
+                                                </span>
+                                                <h3 className="font-bold text-gray-800 text-sm pr-2 leading-tight">{itemName}</h3>
+                                            </div>
+                                            <span className={`px-2 py-0.5 text-xs font-bold rounded-full shrink-0 border ${isReturned ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                                                {r.status}
                                             </span>
                                         </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div className={`h-2 rounded-full transition-all ${stockPercent === 0 ? 'bg-red-500' : stockPercent < 30 ? 'bg-orange-400' : 'bg-green-500'}`} 
-                                                style={{ width: `${stockPercent}%` }} />
+
+                                        {/* Details */}
+                                        <div className="space-y-2.5 mt-2 mb-4">
+                                            <div className="flex justify-between text-xs text-gray-600 border-b border-gray-50 pb-1">
+                                                <span className="font-medium text-concrete">Task</span>
+                                                <span className="font-semibold text-right max-w-[60%] truncate" title={r.taskId?.name || '-'}>{r.taskId?.name || '-'}</span>
+                                            </div>
+                                            <div className="flex justify-between text-xs text-gray-600 border-b border-gray-50 pb-1">
+                                                <span className="font-medium text-concrete">Issued To</span>
+                                                <span className="font-semibold">{r.requestedBy?.name || 'Unknown User'}</span>
+                                            </div>
+                                            <div className="flex justify-between text-xs text-gray-600 pb-1">
+                                                <span className="font-medium text-concrete">Quantity</span>
+                                                <span className="font-bold text-gray-800">{r.issuedQuantity}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Footer / Dates */}
+                                        <div className="flex justify-between pt-3 mt-auto border-t border-concrete-light text-xs">
+                                            <div className="flex flex-col">
+                                                <span className="text-concrete mb-0.5">Issued Date</span>
+                                                <span className="font-bold text-gray-700">{new Date(r.issuedDate).toLocaleDateString()}</span>
+                                            </div>
+                                            <div className="flex flex-col text-right">
+                                                <span className="text-concrete mb-0.5">Return Date</span>
+                                                <span className={`font-bold ${r.returnDate ? 'text-gray-700' : 'text-gray-400'}`}>
+                                                    {r.returnDate ? new Date(r.returnDate).toLocaleDateString() : '—'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-                                    
-                                    {/* Notes */}
-                                    {tool.notes && (
-                                        <p className="text-xs text-gray-500 italic mb-2 line-clamp-2">📝 {tool.notes}</p>
-                                    )}
-                                    
-                                    {/* Added date */}
-                                    <p className="text-xs text-gray-400 mb-2">Added: {new Date(tool.createdAt).toLocaleDateString()}</p>
-                                </div>
                                 );
                             })}
-                            {tools.length === 0 && (
-                                <div className="col-span-full py-8 text-center text-gray-500 bg-white rounded-xl border border-dashed">
-                                    No tools registered for this project. Tools can be added by the Store Keeper.
+                            {storeReports.length === 0 && (
+                                <div className="col-span-full text-center py-12 text-concrete bg-white rounded-xl border border-dashed border-concrete-light">
+                                    <p className="text-sm font-medium">No store reports available for this project.</p>
                                 </div>
                             )}
                         </div>
                     </div>
-
-                    {/* ACTIVE CHECKOUTS SECTION */}
-                    <div>
-                        <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">Active Checkouts</h2>
-                        <div className="bg-white rounded-xl shadow-sm border border-concrete-light overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
-                                        <tr>
-                                            <th className="px-4 py-3">Tool</th>
-                                            <th className="px-4 py-3">Issued To</th>
-                                            <th className="px-4 py-3">Task</th>
-                                            <th className="px-4 py-3">Date</th>
-                                            <th className="px-4 py-3">Return Due</th>
-                                            <th className="px-4 py-3">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {checkouts.map(c => {
-                                            const isActive = c.status === 'Active';
-                                            const isOverdue = isActive && new Date(c.expectedReturnDate) < new Date();
-                                            return (
-                                                <tr key={c._id} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="px-4 py-3 font-medium text-gray-800">{c.toolId?.name || 'Unknown Tool'}</td>
-                                                    <td className="px-4 py-3 text-gray-600">{c.issuedTo?.name || 'Unknown User'}</td>
-                                                    <td className="px-4 py-3 text-gray-500 text-xs">{c.taskId?.name || '-'}</td>
-                                                    <td className="px-4 py-3 text-gray-500">{new Date(c.checkoutDate).toLocaleDateString()}</td>
-                                                    <td className={`px-4 py-3 ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
-                                                        {new Date(c.expectedReturnDate).toLocaleDateString()}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${isActive ? 'bg-amber text-white' : 'bg-green-100 text-green-800'}`}>
-                                                            {c.status}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                        {checkouts.length === 0 && (
-                                            <tr>
-                                                <td colSpan="7" className="px-4 py-8 text-center text-gray-500">No checkouts found for this project.</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             )}
 
-            {/* Checkout Modal */}
-            {isCheckoutModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-                        <div className="px-6 py-4 border-b flex justify-between items-center bg-blue-50">
-                            <h3 className="text-lg font-semibold text-blue-800">Check Out Equipment</h3>
-                            <button onClick={() => setIsCheckoutModalOpen(false)} className="text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
-                        </div>
-                        <form onSubmit={handleCheckoutSubmit} className="p-6 space-y-4">
-                            <div>
-                                <p className="text-sm font-semibold text-gray-800">Tool: {currentTool?.name}</p>
-                                <p className="text-xs text-gray-500">Condition: {currentTool?.condition} | S/N: {currentTool?.serialNumber}</p>
-                            </div>
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Issue To (Project Member) *</label>
-                                <select 
-                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                                    value={checkoutFormData.issuedTo} 
-                                    onChange={(e) => setCheckoutFormData({ ...checkoutFormData, issuedTo: e.target.value })}
-                                    required
-                                >
-                                    <option value="">-- Select Member --</option>
-                                    {members.map(m => <option key={m._id} value={m._id}>{m.name} ({m.email})</option>)}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Task (Optional)</label>
-                                <select 
-                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                                    value={checkoutFormData.taskId} 
-                                    onChange={(e) => setCheckoutFormData({ ...checkoutFormData, taskId: e.target.value })}
-                                >
-                                    <option value="">-- No Specific Task --</option>
-                                    {tasks.filter(t => t.projectId === selectedProject && t.status !== 'Completed').map(t => (
-                                        <option key={t.id} value={t.id}>{t.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Expected Return Date *</label>
-                                <input 
-                                    type="date" 
-                                    required
-                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                                    value={checkoutFormData.expectedReturnDate}
-                                    onChange={(e) => setCheckoutFormData({ ...checkoutFormData, expectedReturnDate: e.target.value })}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                                <textarea 
-                                    rows="2"
-                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                                    value={checkoutFormData.notes}
-                                    onChange={(e) => setCheckoutFormData({ ...checkoutFormData, notes: e.target.value })}
-                                    placeholder="Optional checkout notes..."
-                                />
-                            </div>
-                        </form>
-                        <div className="px-6 py-4 border-t bg-gray-50 flex justify-end space-x-3">
-                            <button type="button" onClick={() => setIsCheckoutModalOpen(false)} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium text-sm">Cancel</button>
-                            <button type="button" onClick={handleCheckoutSubmit} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium text-sm shadow">Confirm Checkout</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Return Modal */}
-            {isReturnModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-                        <div className="px-6 py-4 border-b flex justify-between items-center bg-emerald-50">
-                            <h3 className="text-lg font-semibold text-emerald-800">Return Equipment</h3>
-                            <button onClick={() => setIsReturnModalOpen(false)} className="text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
-                        </div>
-                        <form onSubmit={handleReturnSubmit} className="p-6 space-y-4">
-                            <div>
-                                <p className="text-sm font-semibold text-gray-800">Tool: {currentCheckout?.toolId?.name}</p>
-                                <p className="text-xs text-gray-500">Checked out by: {currentCheckout?.issuedTo?.name}</p>
-                            </div>
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Return Condition *</label>
-                                <select 
-                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                                    value={returnFormData.returnCondition} 
-                                    onChange={(e) => setReturnFormData({ ...returnFormData, returnCondition: e.target.value })}
-                                    required
-                                >
-                                    <option value="New">New</option>
-                                    <option value="Good">Good</option>
-                                    <option value="Fair">Fair</option>
-                                    <option value="Poor">Poor</option>
-                                    <option value="Damaged">Damaged</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Return Notes</label>
-                                <textarea 
-                                    rows="3"
-                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                                    value={returnFormData.notes}
-                                    onChange={(e) => setReturnFormData({ ...returnFormData, notes: e.target.value })}
-                                    placeholder="Any notes about the return, damage, missing parts..."
-                                />
-                            </div>
-                        </form>
-                        <div className="px-6 py-4 border-t bg-gray-50 flex justify-end space-x-3">
-                            <button type="button" onClick={() => setIsReturnModalOpen(false)} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium text-sm">Cancel</button>
-                            <button type="button" onClick={handleReturnSubmit} className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 font-medium text-sm shadow">Confirm Return</button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

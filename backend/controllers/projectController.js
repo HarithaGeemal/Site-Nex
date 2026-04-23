@@ -7,6 +7,7 @@ import Issue from "../models/issue.js";
 import User from "../models/users.js";
 import TaskAssignment from "../models/taskAssignment.js";
 import DeletionLog from "../models/deletionLog.js";
+import IssuanceLog from "../models/issuanceLog.js";
 
 const MEMBER_ROLES = ["PROJECT_MANAGER", "SITE_ENGINEER", "ASSISTANT_ENGINEER", "STORE_KEEPER"];
 
@@ -368,6 +369,25 @@ export const getProjectGantt = async (req, res) => {
     try {
         const ganttData = await ProjectService.getProjectGantt(req.project._id);
         return res.status(200).json({ success: true, data: ganttData });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Get project store reports (issuance logs)
+// @route   GET /api/projects/:id/store-reports
+// @access  Project Manager
+export const getProjectStoreReports = async (req, res) => {
+    try {
+        const logs = await IssuanceLog.find({ projectId: req.project._id })
+            .populate("materialItemId", "name code")
+            .populate("mainStorageToolId", "name code")
+            .populate("taskId", "name")
+            .populate("requestedBy", "name")
+            .populate("issuedBy", "name")
+            .sort({ issuedDate: -1 });
+            
+        return res.status(200).json({ success: true, reports: logs });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }

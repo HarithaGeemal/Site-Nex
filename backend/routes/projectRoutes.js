@@ -18,7 +18,8 @@ import {
     addMember,
     removeMember,
     getProjectDashboard,
-    getProjectGantt
+    getProjectGantt,
+    getProjectStoreReports
 } from "../controllers/projectController.js";
 
 const router = express.Router();
@@ -34,6 +35,7 @@ router.use("/:projectId", protect, validateRequest({ params: projectIdParamSchem
 router.get("/:projectId", authorizeProjectAccess("STORE_KEEPER"), getProjectById);
 router.get("/:projectId/dashboard", authorizeProjectAccess("STORE_KEEPER"), getProjectDashboard);
 router.get("/:projectId/gantt", authorizeProjectAccess("STORE_KEEPER"), getProjectGantt);
+router.get("/:projectId/store-reports", authorizeProjectAccess("PROJECT_MANAGER"), getProjectStoreReports);
 router.put("/:projectId", validateRequest({ body: updateProjectSchema }), authorizeProjectAccess("PROJECT_MANAGER"), updateProject);
 router.delete("/:projectId", authorizeGlobalRole("ADMIN", "PROJECT_MANAGER"), deleteProject);
 

@@ -7,6 +7,7 @@ import SafetyNotice from "../models/safetyNotice.js";
 import SafetyObservation from "../models/safetyObservation.js";
 import Worker from "../models/worker.js";
 import User from "../models/users.js";
+import IssuanceLog from "../models/issuanceLog.js";
 
 // Helper to reliably map the user's active projects
 const getUserProjectIds = async (userId) => {
@@ -215,6 +216,27 @@ export const holdTask = async (req, res) => {
         }
 
         return res.status(200).json({ success: true, message: "Task put on hold. Safety notice issued.", notice, task });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Get store reports (issuance logs) across PM's projects
+// @route   GET /api/pm/store-reports
+// @access  Private
+export const getStoreReports = async (req, res) => {
+    try {
+        const projectIds = await getUserProjectIds(req.user._id);
+        const logs = await IssuanceLog.find({ projectId: { $in: projectIds } })
+            .populate("materialItemId", "name code unit category")
+            .populate("mainStorageToolId", "name code condition")
+            .populate("projectId", "name")
+            .populate("taskId", "name")
+            .populate("requestedBy", "name email")
+            .populate("issuedBy", "name")
+            .sort({ issuedDate: -1 });
+
+        return res.status(200).json({ success: true, reports: logs });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }

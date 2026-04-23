@@ -29,7 +29,7 @@ const materialRequestSchema = new mongoose.Schema(
         },
         toolId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "tools"
+            ref: "main_storage_tools"
         },
         requestedQuantity: {
             type: Number,

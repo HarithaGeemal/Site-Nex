@@ -9,7 +9,8 @@ import {
     getAllSafetyObservations,
     getAllProjects,
     holdTask,
-    getAvailableUsers
+    getAvailableUsers,
+    getStoreReports
 } from "../controllers/pmDashboardController.js";
 
 const router = express.Router();
@@ -27,5 +28,6 @@ router.get("/workers", getAllWorkers);
 router.get("/reports", getAllReports);
 router.get("/safety-notices", getAllSafetyNotices);
 router.get("/safety-observations", getAllSafetyObservations);
+router.get("/store-reports", getStoreReports);
 
 export default router;

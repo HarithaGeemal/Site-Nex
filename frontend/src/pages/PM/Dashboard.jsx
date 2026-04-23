@@ -7,7 +7,7 @@ import { usePMContext } from '../../context/PMContext';
 
 const Dashboard = () => {
     const { user } = useAuth();
-    const { projects, tasks, issues, workers, dailyReports } = usePMContext();
+    const { projects, tasks, issues, workers, dailyReports, storeReports } = usePMContext();
     const navigate = useNavigate();
 
     // Basic stats calculation from live context data
@@ -183,6 +183,57 @@ const Dashboard = () => {
                         </button>
                     </div>
 
+                </div>
+            </div>
+
+            {/* Store Reports Section */}
+            <div className="mt-8 bg-white rounded-xl shadow-sm border border-concrete-light overflow-hidden">
+                <div className="px-6 py-4 border-b border-concrete-light flex justify-between items-center bg-gray-50/50">
+                    <h2 className="text-lg font-bold text-steel-blue">Store Activity</h2>
+                    <span className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded-full font-bold">
+                        {storeReports.filter(r => r.status === 'Issued').length} Active Issuances
+                    </span>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
+                                <th className="px-5 py-3 font-semibold">Item</th>
+                                <th className="px-5 py-3 font-semibold">Type</th>
+                                <th className="px-5 py-3 font-semibold">Project</th>
+                                <th className="px-5 py-3 font-semibold text-center">Qty</th>
+                                <th className="px-5 py-3 font-semibold">Date</th>
+                                <th className="px-5 py-3 font-semibold">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {storeReports.length === 0 && (
+                                <tr><td colSpan={6} className="px-5 py-8 text-center text-gray-400 italic text-sm">No store activity yet.</td></tr>
+                            )}
+                            {storeReports.slice(0, 6).map(r => (
+                                <tr key={r.id || r._id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-5 py-3 text-sm font-semibold text-gray-800">
+                                        {r.type === 'Material'
+                                            ? (r.materialItemId?.name || '—')
+                                            : (r.mainStorageToolId?.name || '—')}
+                                    </td>
+                                    <td className="px-5 py-3">
+                                        <span className={`px-2 py-0.5 text-xs font-bold rounded ${r.type === 'Material' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                                            {r.type}
+                                        </span>
+                                    </td>
+                                    <td className="px-5 py-3 text-sm text-gray-600">{r.projectId?.name || '—'}</td>
+                                    <td className="px-5 py-3 text-sm font-bold text-gray-700 text-center">{r.issuedQuantity}</td>
+                                    <td className="px-5 py-3 text-sm text-gray-500">{new Date(r.issuedDate).toLocaleDateString()}</td>
+                                    <td className="px-5 py-3">
+                                        <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${r.status === 'Returned' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                            {r.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

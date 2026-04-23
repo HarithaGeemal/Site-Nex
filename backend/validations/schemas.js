@@ -194,6 +194,7 @@ export const getIssuesQuerySchema = z.object({
 // ----------------------------------------
 export const createMaterialItemSchema = z.object({
     name: z.string().min(1),
+    code: z.string().min(1),
     category: z.string().min(1).optional(),
     unit: z.string().min(1),
     defaultUnitCost: z.number().min(0).optional(),
@@ -413,4 +414,45 @@ export const purchaseOrderIdParamSchema = z.object({
 export const updatePurchaseOrderSchema = z.object({
     status: z.enum(["Draft", "Ordered", "Received", "Cancelled"]),
     notes: z.string().optional()
+});
+
+// ----------------------------------------
+// Main Storage Tools (Store Keeper)
+// ----------------------------------------
+export const createMainStorageToolSchema = z.object({
+    name: z.string().min(1),
+    code: z.string().min(1),
+    quantity: z.number().min(0),
+    condition: z.enum(["New", "Good", "Fair", "Poor", "Damaged"]).optional(),
+});
+
+export const updateMainStorageToolSchema = createMainStorageToolSchema.partial();
+
+export const mainStorageToolIdParamSchema = z.object({
+    id: objectId,
+});
+
+// ----------------------------------------
+// Issuance Logs (Store Keeper)
+// ----------------------------------------
+export const createIssuanceLogSchema = z.object({
+    type: z.enum(["Material", "Tool"]),
+    materialItemId: objectId.optional(),
+    mainStorageToolId: objectId.optional(),
+    projectId: objectId,
+    taskId: objectId.optional(),
+    materialRequestId: objectId.optional(),
+    requestedBy: objectId,
+    issuedQuantity: z.number().min(1),
+    conditionAtIssue: z.enum(["New", "Good", "Fair", "Poor", "Damaged"]).optional(),
+});
+
+export const returnToolIssuanceSchema = z.object({
+    returnDate: z.string(),
+    conditionAtReturn: z.enum(["New", "Good", "Fair", "Poor", "Damaged"]),
+    damageNotes: z.string().optional(),
+});
+
+export const issuanceLogIdParamSchema = z.object({
+    id: objectId,
 });

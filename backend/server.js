@@ -26,6 +26,7 @@ import adminDashboardRoutes from './routes/adminDashboardRoutes.js';
 import riskAssessmentRoutes from './routes/riskAssessmentRoutes.js';
 import workerRoutes from './routes/workerRoutes.js';
 import workerPortalRoutes from './routes/workerPortalRoutes.js';
+import mainStorageRoutes from './routes/mainStorageRoutes.js';
 
 import protect from './middlewares/authMiddleware.js';
 import { validateRequest } from './middlewares/validateRequest.js';
@@ -92,6 +93,9 @@ app.use('/api/worker', workerPortalRoutes);
 // Admin & Risk Assessment endpoints
 app.use('/api/admin', adminDashboardRoutes);
 app.use('/api/risk-assessments', riskAssessmentRoutes);
+
+// Store Keeper Global Routes (not project-scoped)
+app.use('/api/store', express.json(), mainStorageRoutes);
 
 app.get('/', (req, res) => {
     res.send('SiteNex Backend is running!');

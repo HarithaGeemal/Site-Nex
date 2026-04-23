@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const materialItemSchema = new mongoose.Schema(
     {
         name: { type: String, required: true, trim: true },
+        code: { type: String, required: true, trim: true, unique: true },
         category: {
             type: String,
             enum: ["Structural", "Electrical", "Plumbing", "Finishing", "Other"],

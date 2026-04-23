@@ -43,6 +43,7 @@ export const PMProvider = (props) => {
     const [stopHoldNotices, setStopHoldNotices] = useState([]);
     const [blockedTasks, setBlockedTasks] = useState([]);
     const [availableUsers, setAvailableUsers] = useState([]);
+    const [storeReports, setStoreReports] = useState([]);
 
     // --- Fetch Functions (Live Backend) ---
 
@@ -567,6 +568,13 @@ export const PMProvider = (props) => {
         });
     };
 
+    const fetchStoreReports = useCallback(async () => {
+        try {
+            const { data } = await axiosClient.get("/pm/store-reports");
+            if (data.success) setStoreReports(data.reports.map(r => ({ ...r, id: r._id })));
+        } catch (error) { console.error("Error fetching store reports:", error); }
+    }, [axiosClient]);
+
     // --- useEffects ---
     useEffect(() => {
         fetchProjects();
@@ -577,12 +585,13 @@ export const PMProvider = (props) => {
         fetchSafetyObservations();
         fetchStopHoldNotices();
         fetchAvailableUsers();
-    }, [fetchProjects, fetchTasks, fetchWorkers, fetchIssues, fetchDailyReports, fetchSafetyObservations, fetchStopHoldNotices, fetchBlockedTasks, fetchAvailableUsers, location.pathname]);
+        fetchStoreReports();
+    }, [fetchProjects, fetchTasks, fetchWorkers, fetchIssues, fetchDailyReports, fetchSafetyObservations, fetchStopHoldNotices, fetchBlockedTasks, fetchAvailableUsers, fetchStoreReports, location.pathname]);
 
     // --- Context Value ---
     const value = {
-        projects, tasks, workers, issues, dailyReports, safetyObservations, stopHoldNotices, blockedTasks, availableUsers,
-        fetchProjects, fetchTasks, fetchWorkers, fetchIssues, fetchDailyReports, fetchSafetyObservations, fetchStopHoldNotices, fetchBlockedTasks, fetchAvailableUsers,
+        projects, tasks, workers, issues, dailyReports, safetyObservations, stopHoldNotices, blockedTasks, availableUsers, storeReports,
+        fetchProjects, fetchTasks, fetchWorkers, fetchIssues, fetchDailyReports, fetchSafetyObservations, fetchStopHoldNotices, fetchBlockedTasks, fetchAvailableUsers, fetchStoreReports,
         addProject, updateProject, deleteProject,
         addTask, updateTask, deleteTask, approveTaskCompletion,
         addWorker, updateWorker, deleteWorker,

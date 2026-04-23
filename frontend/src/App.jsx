@@ -7,11 +7,19 @@ import Dashboard from "./pages/PM/Dashboard";
 import { PMProvider } from "./context/PMContext";
 import { SEProvider } from "./context/SEContext";
 import { SOProvider } from "./context/SOContext";
+import { SKProvider } from "./context/SKContext";
 import RoleGuard from "./components/RoleGuard";
 import SOLayout from "./layouts/SOLayout";
+import SKLayout from "./layouts/SKLayout";
 import WorkerLayout from "./components/Worker/WorkerLayout";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
+import SKDashboard from "./pages/SK/SKDashboard";
+import SKInventory from "./pages/SK/SKInventory";
+import SKRequests from "./pages/SK/SKRequests";
+import SKToolReturns from "./pages/SK/SKToolReturns";
+import SKReports from "./pages/SK/SKReports";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -130,6 +138,18 @@ const App = () => {
                     <Route path="ptws" element={<SOPTWs />} />
                     <Route path="safety-notices" element={<SOSafetyNotices />} />
                     <Route path="tools" element={<SOTools />} />
+                </Route>
+
+                {/* Protected SK Routes — wrapped in SKProvider */}
+                <Route path="/sk" element={
+                    <PrivateRoute><SKProvider><SKLayout /></SKProvider></PrivateRoute>
+                }>
+                    <Route index element={<Navigate to="dashboard" replace />} />
+                    <Route path="dashboard" element={<SKDashboard />} />
+                    <Route path="inventory" element={<SKInventory />} />
+                    <Route path="requests" element={<SKRequests />} />
+                    <Route path="tool-returns" element={<SKToolReturns />} />
+                    <Route path="reports" element={<SKReports />} />
                 </Route>
 
                 {/* Protected WORKER Routes */}

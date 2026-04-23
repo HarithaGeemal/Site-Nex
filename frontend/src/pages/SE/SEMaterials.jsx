@@ -18,7 +18,9 @@ const SEMaterials = () => {
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [globalMaterials, setGlobalMaterials] = useState([]);
-    const [projectTools, setProjectTools] = useState([]);
+    const [mainStorageTools, setMainStorageTools] = useState([]);
+    const [itemSearch, setItemSearch] = useState('');
+    const [stockWarnings, setStockWarnings] = useState({});  // { index: message }
     
     // Form State
     const [selectedTaskId, setSelectedTaskId] = useState('');
@@ -32,12 +34,13 @@ const SEMaterials = () => {
 
     const loadCatalog = async () => {
         try {
-            const { data } = await axiosClient.get("/materials/items");
+            const { data } = await axiosClient.get("/store/inventory");
             if (data.success) {
-                setGlobalMaterials(data.items);
+                setGlobalMaterials(data.materials || []);
+                setMainStorageTools(data.tools || []);
             }
         } catch (error) {
-            console.error("Failed to load global material catalog", error);
+            console.error("Failed to load global inventory", error);
         }
     };
 
@@ -45,24 +48,33 @@ const SEMaterials = () => {
         loadCatalog();
     }, []);
 
-    // When Task changes, fetch the project's tools
+    // When Task changes, clear stock warnings
     useEffect(() => {
-        if (!selectedTaskId) {
-            setProjectTools([]);
-            return;
+        setStockWarnings({});
+    }, [selectedTaskId]);
+
+    // Check stock inline when item or quantity changes
+    const checkStockInline = (index, newItems) => {
+        const item = newItems[index];
+        if (!item.itemId || !item.quantityRequested) return;
+        const warnings = { ...stockWarnings };
+        if (item.requestType === 'Material') {
+            const mat = globalMaterials.find(m => m._id === item.itemId);
+            if (mat && mat.quantity < item.quantityRequested) {
+                warnings[index] = `Only ${mat.quantity} ${mat.unit || 'units'} available in stock.`;
+            } else {
+                delete warnings[index];
+            }
+        } else {
+            const tool = mainStorageTools.find(t => t._id === item.itemId);
+            if (tool && tool.quantity < item.quantityRequested) {
+                warnings[index] = `Only ${tool.quantity} units available in main storage.`;
+            } else {
+                delete warnings[index];
+            }
         }
-        
-        const task = assignedTasks.find(t => t.id === selectedTaskId) || assignedTasks.find(t => t._id === selectedTaskId);
-        if (task && task.projectId) {
-            const pId = typeof task.projectId === 'object' ? (task.projectId._id || task.projectId.id) : task.projectId;
-            axiosClient.get(`/projects/${pId}/tools`).then(({ data }) => {
-                if(data.success) setProjectTools(data.tools || []);
-            }).catch(err => {
-                console.error("Failed to load tools for project", err);
-                setProjectTools([]);
-            });
-        }
-    }, [selectedTaskId, assignedTasks]);
+        setStockWarnings(warnings);
+    };
 
     const handleAddItem = () => {
         setItems([...items, { requestType: 'Material', itemId: '', quantityRequested: 1 }]);
@@ -80,8 +92,15 @@ const SEMaterials = () => {
         // Reset itemId if switching types
         if (field === 'requestType') {
             newItems[index].itemId = '';
+            const warnings = { ...stockWarnings };
+            delete warnings[index];
+            setStockWarnings(warnings);
         }
         setItems(newItems);
+        // Re-check stock after change
+        if (field === 'itemId' || field === 'quantityRequested') {
+            checkStockInline(index, newItems);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -351,10 +370,21 @@ const SEMaterials = () => {
                                             + Add Another Item
                                         </button>
                                     </div>
+
+                                    {/* Search filter for items */}
+                                    <div className="mb-3">
+                                        <input
+                                            type="text"
+                                            placeholder="Search by name or code..."
+                                            value={itemSearch}
+                                            onChange={(e) => setItemSearch(e.target.value)}
+                                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-steel-blue focus:border-steel-blue outline-none"
+                                        />
+                                    </div>
                                     
                                     <div className="space-y-3">
                                         {items.map((item, index) => (
-                                            <div key={index} className="flex gap-3 items-center bg-white p-3 rounded border border-gray-200 shadow-sm">
+                                            <div key={index} className="flex flex-wrap gap-3 items-start bg-white p-3 rounded border border-gray-200 shadow-sm">
                                                 <select
                                                     value={item.requestType}
                                                     onChange={(e) => handleItemChange(index, 'requestType', e.target.value)}
@@ -371,16 +401,28 @@ const SEMaterials = () => {
                                                     required
                                                 >
                                                     <option value="" disabled>Select {item.requestType.toLowerCase()}...</option>
-                                                    {item.requestType === 'Material' && globalMaterials.map(m => (
-                                                        <option key={m._id} value={m._id}>{m.name} ({m.unit}) - Stock: {m.currentStock ?? m.totalStock ?? 'N/A'}</option>
+                                                    {item.requestType === 'Material' && globalMaterials
+                                                        .filter(m => !itemSearch || m.name.toLowerCase().includes(itemSearch.toLowerCase()) || (m.code||'').toLowerCase().includes(itemSearch.toLowerCase()))
+                                                        .map(m => (
+                                                        <option key={m._id} value={m._id}>{m.name} ({m.unit}) — Stock: {m.quantity ?? 'N/A'}</option>
                                                     ))}
-                                                    {item.requestType === 'Tool' && projectTools.map(t => (
-                                                        <option key={t._id} value={t._id}>{t.name} ({t.condition}) - Qty: {t.availableQuantity}/{t.totalQuantity}</option>
+                                                    {item.requestType === 'Tool' && mainStorageTools
+                                                        .filter(t => !itemSearch || t.name.toLowerCase().includes(itemSearch.toLowerCase()) || (t.code||'').toLowerCase().includes(itemSearch.toLowerCase()))
+                                                        .map(t => (
+                                                        <option key={t._id} value={t._id}>{t.name} ({t.condition}) — Qty: {t.quantity}</option>
                                                     ))}
-                                                    {item.requestType === 'Tool' && projectTools.length === 0 && (
-                                                        <option value="" disabled>No tools registered for this project</option>
+                                                    {item.requestType === 'Tool' && mainStorageTools.length === 0 && (
+                                                        <option value="" disabled>No tools in main storage</option>
                                                     )}
                                                 </select>
+
+                                                {/* Inline stock warning — non-intrusive */}
+                                                {stockWarnings[index] && (
+                                                    <div className="w-full mt-1 flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-1.5 text-xs font-medium">
+                                                        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                                                        {stockWarnings[index]} Your request will still be submitted but the Store Keeper may partially fulfil it.
+                                                    </div>
+                                                )}
 
                                                 <input
                                                     type="number" min="1"
