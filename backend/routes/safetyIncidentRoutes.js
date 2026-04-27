@@ -26,6 +26,6 @@ router.post("/", authorizeProjectAccess("SAFETY_OFFICER"), validateRequest({ bod
 router.get("/", authorizeProjectAccess("STORE_KEEPER"), getIncidents);
 router.get("/:incidentId", validateRequest({ params: incidentIdParamSchema }), authorizeProjectAccess("STORE_KEEPER"), getIncidentById);
 router.put("/:incidentId", validateRequest({ params: incidentIdParamSchema, body: updateSafetyIncidentSchema }), authorizeProjectAccess("SAFETY_OFFICER"), updateIncident);
-router.delete("/:incidentId", validateRequest({ params: incidentIdParamSchema, body: deleteSafetyIncidentSchema }), authorizeProjectAccess("PROJECT_MANAGER"), deleteIncident);
+router.delete("/:incidentId", validateRequest({ params: incidentIdParamSchema, body: deleteSafetyIncidentSchema }), authorizeProjectAccess("SAFETY_OFFICER"), deleteIncident);
 
 export default router;

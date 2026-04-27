@@ -28,10 +28,11 @@ const protect = async (req, res, next) => {
             return res.status(403).json({ success: false, message: "Your account has been deactivated" });
         }
 
-        // Update last login (fire and forget)
-        user.lastLoginAt = new Date();
-        user.save().catch(err => console.error("Failed updating last login:", err));
-
+        // Update last login (fire and forget) - skip during tests to prevent async errors after DB clear
+        if (process.env.NODE_ENV !== 'test') {
+            user.lastLoginAt = new Date();
+            user.save().catch(err => console.error("Failed updating last login:", err));
+        }
         // Attach the full MongoDB doc — controllers use req.user._id
         req.user = user;
         next();

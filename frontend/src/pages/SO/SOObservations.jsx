@@ -19,6 +19,7 @@ const SOObservations = () => {
     const { activeProjectId, safetyObservations, tasks, createObservation, updateObservation, deleteObservation } = useSOContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentObservation, setCurrentObservation] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '', type: 'Unsafe Condition', severity: 'Medium', location: '',
@@ -60,6 +61,8 @@ const SOObservations = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (submitting) return;
+        setSubmitting(true);
         try {
             const payload = { ...formData };
             if (!payload.taskId) delete payload.taskId;
@@ -75,6 +78,8 @@ const SOObservations = () => {
         } catch (error) {
             console.error(error);
             alert('Failed to save observation: ' + (error.response?.data?.message || 'Check connection.'));
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -209,7 +214,7 @@ const SOObservations = () => {
                         </form>
                         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
                             <button type="button" onClick={closeModal} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium">Cancel</button>
-                            <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium">Save Observation</button>
+                            <button type="button" onClick={handleSubmit} disabled={submitting} className={`px-4 py-2 text-white rounded font-medium ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}>{submitting ? 'Saving...' : 'Save Observation'}</button>
                         </div>
                     </div>
                 </div>

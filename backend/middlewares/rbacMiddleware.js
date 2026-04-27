@@ -4,8 +4,6 @@ import ProjectMembership from "../models/projectMembership.js";
 import Task from "../models/task.js";
 import Issue from "../models/issue.js";
 import TaskAssignment from "../models/taskAssignment.js";
-import MaterialUsageLog from "../models/materialUsageLog.js";
-
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 // ----------------------------------------------------
@@ -101,28 +99,6 @@ export const loadAssignment = async (req, res, next) => {
         next();
     } catch (error) {
         return res.status(500).json({ success: false, message: "Internal server error: loadAssignment" });
-    }
-};
-
-/**
- * Loads a material usage log by ID
- */
-export const loadUsageLog = async (req, res, next) => {
-    try {
-        const usageLogId = req.params.usageLogId;
-        if (!usageLogId) return res.status(400).json({ success: false, message: "Missing usageLogId" });
-        if (!isValidId(usageLogId)) return res.status(400).json({ success: false, message: "Invalid usageLogId" });
-
-        const log = await MaterialUsageLog.findOne({ _id: usageLogId, isVoided: false });
-        if (!log) return res.status(404).json({ success: false, message: "Usage log not found" });
-
-        req.usageLog = log;
-        if (!req.project && log.projectId) {
-            req.params.projectId = log.projectId.toString();
-        }
-        next();
-    } catch (error) {
-        return res.status(500).json({ success: false, message: "Internal server error: loadUsageLog" });
     }
 };
 

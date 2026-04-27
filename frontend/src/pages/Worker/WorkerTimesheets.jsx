@@ -10,7 +10,7 @@ const statusColors = {
 
 const WorkerTimesheets = () => {
     const axiosClient = useAxios();
-    const { assignedTasks } = useWorkerContext();
+    const { assignedProjects } = useWorkerContext();
 
     const [timesheets, setTimesheets] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -23,17 +23,21 @@ const WorkerTimesheets = () => {
     const [formHours, setFormHours] = useState(8);
     const [formDescription, setFormDescription] = useState('');
 
-    // Derive unique projects from assigned tasks
+    // Derive unique projects directly from assignedProjects
     const uniqueProjects = [];
     const seenProjects = new Set();
-    assignedTasks.forEach(t => {
-        const pId = typeof t.projectId === 'object' ? (t.projectId?._id || t.projectId?.id) : t.projectId;
-        const pName = typeof t.projectId === 'object' ? t.projectId?.name : '';
-        if (pId && !seenProjects.has(pId)) {
-            seenProjects.add(pId);
-            uniqueProjects.push({ id: pId, name: pName || 'Unknown Project' });
-        }
-    });
+    
+    if (assignedProjects && assignedProjects.length > 0) {
+        assignedProjects.forEach(p => {
+            const pId = typeof p === 'object' ? (p?._id || p?.id) : p;
+            const pName = typeof p === 'object' ? p?.name : 'Unknown Project';
+            
+            if (pId && !seenProjects.has(pId)) {
+                seenProjects.add(pId);
+                uniqueProjects.push({ id: pId, name: pName });
+            }
+        });
+    }
 
     const fetchTimesheets = async () => {
         try {

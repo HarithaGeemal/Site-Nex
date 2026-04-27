@@ -79,6 +79,21 @@ export const requestSubtaskCompletion = async (req, res) => {
             return res.status(403).json({ success: false, message: "Cannot request completion: The Permit to Work for this subtask was denied by the Safety Officer." });
         }
 
+        // Block completion if the parent task or project has an active safety notice
+        const SafetyNotice = (await import("../models/safetyNotice.js")).default;
+        const activeNotice = await SafetyNotice.findOne({
+            projectId: subtask.projectId,
+            status: "Active",
+            $or: [
+                { taskId: subtask.parentTaskId },
+                { taskId: null },
+                { taskId: { $exists: false } }
+            ]
+        });
+        if (activeNotice) {
+            return res.status(403).json({ success: false, message: `Cannot request completion. The parent task is blocked by an active Safety Notice (${activeNotice.severity || 'High'} severity): "${activeNotice.reason}". The notice must be lifted first.` });
+        }
+
         subtask.completionRequested = true;
         subtask.completionRequestedAt = new Date();
         subtask.completionRequestedBy = req.user._id;

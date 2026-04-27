@@ -23,18 +23,21 @@ router.get("/dashboard", async (req, res) => {
     try {
         const userId = req.user._id;
 
-        // Find all Worker profiles associated with this User
-        const workerProfiles = await Worker.find({ userId });
+        // Find all Worker profiles associated with this User and populate the project
+        const workerProfiles = await Worker.find({ userId }).populate("projectId", "name");
         const workerIds = workerProfiles.map(w => w._id);
 
         if (workerIds.length === 0) {
             return res.status(200).json({
                 success: true,
                 projectsCount: 0,
+                assignedProjects: [],
                 assignedTasks: [],
                 assignedSubtasks: [],
             });
         }
+
+        const assignedProjects = workerProfiles.map(w => w.projectId);
 
         // Subtasks assigned strictly to these worker IDs
         const assignedSubtasks = await Subtask.find({
@@ -69,6 +72,7 @@ router.get("/dashboard", async (req, res) => {
         return res.status(200).json({
             success: true,
             projectsCount: workerProfiles.length,
+            assignedProjects,
             assignedTasks,
             assignedSubtasks: subtasksWithPtw,
         });
@@ -167,89 +171,7 @@ router.patch("/subtasks/:subtaskId/request-completion", async (req, res) => {
 // @access  Worker
 router.patch("/subtasks/:subtaskId/start", startSubtask);
 
-// ==========================================
-// MATERIAL REQUESTS (Worker -> SE -> StoreKeeper)
-// ==========================================
 
-// @desc    Get material requests made by the worker
-// @route   GET /api/worker/material-requests
-// @access  Worker
-router.get("/material-requests", async (req, res) => {
-    try {
-        const requests = await MaterialRequest.find({ requestedBy: req.user._id })
-            .populate("projectId", "name")
-            .populate("taskId", "name")
-            .populate("materialItemId", "name unit")
-            .populate("toolId", "name serialNumber")
-            .sort({ createdAt: -1 });
-
-        return res.status(200).json({ success: true, requests });
-    } catch (error) {
-        return res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// @desc    Worker submits new Material/Tool Request
-// @route   POST /api/worker/material-requests
-// @access  Worker
-router.post("/material-requests", async (req, res) => {
-    try {
-        const { taskId, items, notes } = req.body;
-
-        if (!taskId) return res.status(400).json({ success: false, message: "Target Task ID required." });
-        if (!items || !items.length) return res.status(400).json({ success: false, message: "No items provided." });
-
-        // Verify task assignment
-        const workerProfiles = await Worker.find({ userId: req.user._id });
-        const workerIds = workerProfiles.map(w => w._id);
-
-        // Find if they are assigned to the Subtask or the Main Task
-        const [subtask, mainTask] = await Promise.all([
-            Subtask.findOne({ _id: taskId, assignedWorkers: { $in: workerIds } }),
-            Task.findOne({ _id: taskId, assignedWorkers: { $in: workerIds } })
-        ]);
-
-        const taskDoc = subtask || mainTask;
-        if (!taskDoc) return res.status(403).json({ success: false, message: "Not authorized to request materials for this task." });
-
-        const requestDocs = items.map(item => ({
-            projectId: taskDoc.projectId,
-            taskId,
-            requestedBy: req.user._id,
-            requestType: item.requestType || "Material",
-            requestedQuantity: item.quantityRequested,
-            toolId: item.requestType === "Tool" ? item.itemId : undefined,
-            materialItemId: item.requestType !== "Tool" ? item.itemId : undefined,
-            notes,
-            status: "Pending SE Approval" // CRITICAL: Forces SE check before Store Keeper
-        }));
-
-        const requests = await MaterialRequest.insertMany(requestDocs);
-
-        return res.status(201).json({ success: true, message: "Requests dispatched to Site Engineer.", requests });
-    } catch (error) {
-        return res.status(400).json({ success: false, message: error.message });
-    }
-});
-
-// @desc    Delete a Pending SE Approval material request
-// @route   DELETE /api/worker/material-requests/:id
-// @access  Worker
-router.delete("/material-requests/:id", async (req, res) => {
-    try {
-        const reqDoc = await MaterialRequest.findOne({ _id: req.params.id, requestedBy: req.user._id });
-
-        if (!reqDoc) return res.status(404).json({ success: false, message: "Request not found" });
-        if (reqDoc.status !== "Pending SE Approval") {
-            return res.status(403).json({ success: false, message: "Cannot delete. Request is already being processed." });
-        }
-
-        await reqDoc.deleteOne();
-        return res.status(200).json({ success: true, message: "Request deleted successfully" });
-    } catch (error) {
-        return res.status(500).json({ success: false, message: error.message });
-    }
-});
 
 // ==========================================
 // DAILY TIMESHEETS (Worker CRUD)

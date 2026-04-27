@@ -28,7 +28,12 @@ const safetyNoticeSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
         },
-        liftedAt: { type: Date }
+        liftedAt: { type: Date },
+        severity: {
+            type: String,
+            enum: ["Low", "Medium", "High", "Critical"],
+            default: "High"
+        }
     },
     { timestamps: true }
 );

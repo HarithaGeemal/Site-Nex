@@ -14,6 +14,7 @@ const SOHazards = () => {
     const { activeProjectId, hazardReports, createHazard, updateHazard, deleteHazard } = useSOContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentHazard, setCurrentHazard] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
 
     // Fields from hazardReport.js model: title, description, controlActions, dueDate, status
     const [formData, setFormData] = useState({
@@ -49,9 +50,11 @@ const SOHazards = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (submitting) return;
         if (!formData.title.trim() || !formData.description.trim() || !formData.controlActions.trim()) {
             return alert('Title, Description, and Control Actions are required.');
         }
+        setSubmitting(true);
         try {
             const payload = { ...formData };
             if (!payload.dueDate) delete payload.dueDate;
@@ -62,6 +65,8 @@ const SOHazards = () => {
         } catch (error) {
             const msg = error?.response?.data?.message || 'Failed to save hazard report.';
             alert(msg);
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -152,7 +157,7 @@ const SOHazards = () => {
                         </form>
                         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
                             <button type="button" onClick={closeModal} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium">Cancel</button>
-                            <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium">Save Report</button>
+                            <button type="button" onClick={handleSubmit} disabled={submitting} className={`px-4 py-2 text-white rounded font-medium ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}>{submitting ? 'Saving...' : 'Save Report'}</button>
                         </div>
                     </div>
                 </div>

@@ -3,7 +3,6 @@ import {
     getMaterialRequests,
     getMaterialRequestById,
     createMaterialRequest,
-    respondToMaterialRequest,
     approveWorkerMaterialRequest,
     denyWorkerMaterialRequest,
     addCommentToRequest
@@ -12,7 +11,6 @@ import { authorizeProjectAccess } from "../middlewares/rbacMiddleware.js";
 import { validateRequest } from "../middlewares/validateRequest.js";
 import {
     createMaterialRequestSchema,
-    respondMaterialRequestSchema,
     materialRequestIdParamSchema
 } from "../validations/schemas.js";
 
@@ -28,13 +26,6 @@ router.route("/")
 router.route("/:requestId")
     .get(validateRequest({ params: materialRequestIdParamSchema }), getMaterialRequestById);
 
-// Store Keeper dedicated response endpoint
-router.route("/:requestId/respond")
-    .patch(
-        authorizeProjectAccess("STORE_KEEPER"), 
-        validateRequest({ params: materialRequestIdParamSchema, body: respondMaterialRequestSchema }), 
-        respondToMaterialRequest
-    );
 
 // SE specific mediator approval endpoint
 router.route("/:requestId/se-approve")

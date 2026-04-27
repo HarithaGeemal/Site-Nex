@@ -1,5 +1,6 @@
 import Task from "../models/task.js";
 import Issue from "../models/issue.js";
+import SafetyNotice from "../models/safetyNotice.js";
 import mongoose from "mongoose";
 
 class TaskService {
@@ -125,6 +126,20 @@ class TaskService {
         if (!task || task.isCancled) throw new Error("Task not found or cancelled");
         if (task.status === "Completed") throw new Error("Task is already completed");
         if (task.completionRequested) throw new Error("Task completion has already been requested");
+
+        // Block completion if there is an active safety notice on this task or project-wide
+        const activeNotice = await SafetyNotice.findOne({
+            projectId: task.projectId,
+            status: "Active",
+            $or: [
+                { taskId: task._id },
+                { taskId: null },
+                { taskId: { $exists: false } }
+            ]
+        });
+        if (activeNotice) {
+            throw new Error(`Cannot request completion. This task is blocked by an active Safety Notice (${activeNotice.severity} severity): "${activeNotice.reason}". The notice must be lifted first.`);
+        }
 
         const openIssuesCount = await Issue.countDocuments({
             taskId: task._id,

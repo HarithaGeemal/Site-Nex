@@ -8,7 +8,6 @@ import userRoutes from './routes/userRoutes.js';
 import projectRoutes from './routes/projectRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
 import taskAssignmentRoutes from './routes/taskAssignmentRoutes.js';
-import { catalogRouter as materialCatalogRoutes, projectRouter as materialProjectRoutes } from './routes/materialRoutes.js';
 import issueRoutes from './routes/issueRoutes.js';
 import siteProgressReportRoutes from './routes/siteProgressReportRoutes.js';
 import safetyIncidentRoutes from './routes/safetyIncidentRoutes.js';
@@ -17,7 +16,6 @@ import hazardReportRoutes from './routes/hazardReportRoutes.js';
 import safetyNoticeRoutes from './routes/safetyNoticeRoutes.js';
 import ptwRoutes from './routes/ptwRoutes.js';
 import toolRoutes from './routes/toolRoutes.js';
-import toolCheckoutRoutes from './routes/toolCheckoutRoutes.js';
 import materialRequestRoutes from './routes/materialRequestRoutes.js';
 import safetyDashboardRoutes from './routes/safetyDashboardRoutes.js';
 import pmDashboardRoutes from './routes/pmDashboardRoutes.js';
@@ -36,7 +34,9 @@ import { projectIdParamSchema } from './validations/schemas.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-await connectDB();
+if (process.env.NODE_ENV !== 'test') {
+    await connectDB();
+}
 
 app.use(cors({
     origin: ['http://localhost:5173'],
@@ -64,7 +64,6 @@ const projectScopedMiddlewares = [
 
 app.use('/api/projects/:projectId/tasks', projectScopedMiddlewares, express.json(), taskRoutes);
 app.use('/api/projects/:projectId/issues', projectScopedMiddlewares, express.json(), issueRoutes);
-app.use('/api/projects/:projectId/materials', projectScopedMiddlewares, express.json(), materialProjectRoutes);
 app.use('/api/projects/:projectId/task-assignments', projectScopedMiddlewares, express.json(), taskAssignmentRoutes);
 app.use('/api/projects/:projectId/site-progress-reports', projectScopedMiddlewares, express.json(), siteProgressReportRoutes);
 app.use('/api/projects/:projectId/safety-incidents', projectScopedMiddlewares, express.json(), safetyIncidentRoutes);
@@ -79,11 +78,8 @@ app.use('/api/projects/:projectId/workers', projectScopedMiddlewares, express.js
 
 // Store Keeper Ecosystem Mounts
 app.use('/api/projects/:projectId/tools', projectScopedMiddlewares, express.json(), toolRoutes);
-app.use('/api/projects/:projectId/checkouts', projectScopedMiddlewares, express.json(), toolCheckoutRoutes);
 app.use('/api/projects/:projectId/material-requests', projectScopedMiddlewares, express.json(), materialRequestRoutes);
 
-// Global Material Catalog Routes for global material catalog endpoints (/api/materials/items)
-app.use('/api/materials', express.json(), materialCatalogRoutes);
 
 // Global PM & SE & Worker Aggregation endpoints
 app.use('/api/pm', pmDashboardRoutes);
@@ -110,7 +106,7 @@ app.use((req, res) => {
     });
 });
 
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
 }
 

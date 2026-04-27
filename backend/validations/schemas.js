@@ -28,10 +28,6 @@ export const assignmentIdParamSchema = z.object({
     assignmentId: objectId,
 });
 
-export const usageLogIdParamSchema = z.object({
-    usageLogId: objectId,
-});
-
 export const userIdParamSchema = z.object({
     userId: objectId,
 });
@@ -200,31 +196,6 @@ export const createMaterialItemSchema = z.object({
     defaultUnitCost: z.number().min(0).optional(),
     minStockThreshold: z.number().min(0).optional(),
 });
-export const addStockMovementSchema = z.object({
-    materialItemId: objectId,
-    type: z.enum(["STOCK_IN", "ADJUSTMENT"]),
-    quantity: z.number(),
-    supplier: z.string().optional(),
-    deliveryDate: z.string().optional(),
-    unitCost: z.number().optional(),
-    note: z.string().optional()
-});
-
-export const logUsageSchema = z.object({
-    taskId: objectId,
-    materialItemId: objectId,
-    quantityUsed: z.number().positive(),
-    usageDate: z.string()
-});
-
-export const getMovementsByMaterialQuerySchema = z.object({
-    materialItemId: objectId,
-});
-
-export const getUsageByTaskQuerySchema = z.object({
-    taskId: objectId,
-});
-
 // ----------------------------------------
 // Safety Incidents
 // ----------------------------------------
@@ -363,26 +334,6 @@ export const blacklistToolSchema = z.object({
 });
 
 // ----------------------------------------
-// Tool Checkouts
-// ----------------------------------------
-export const createToolCheckoutSchema = z.object({
-    toolId: objectId,
-    taskId: objectId.optional(),
-    issuedTo: objectId,
-    expectedReturnDate: z.string(),
-    notes: z.string().optional()
-});
-
-export const returnToolCheckoutSchema = z.object({
-    returnCondition: z.enum(["New", "Good", "Fair", "Poor", "Damaged"]),
-    notes: z.string().optional()
-});
-
-export const checkoutIdParamSchema = z.object({
-    checkoutId: objectId,
-});
-
-// ----------------------------------------
 // Material Requests
 // ----------------------------------------
 export const createMaterialRequestSchema = z.object({
@@ -395,25 +346,8 @@ export const createMaterialRequestSchema = z.object({
     notes: z.string().optional()
 });
 
-export const respondMaterialRequestSchema = z.object({
-    status: z.enum(["Approved", "Denied"]),
-    notes: z.string().optional()
-});
-
 export const materialRequestIdParamSchema = z.object({
     requestId: objectId,
-});
-
-// ----------------------------------------
-// Purchase Orders
-// ----------------------------------------
-export const purchaseOrderIdParamSchema = z.object({
-    poId: objectId,
-});
-
-export const updatePurchaseOrderSchema = z.object({
-    status: z.enum(["Draft", "Ordered", "Received", "Cancelled"]),
-    notes: z.string().optional()
 });
 
 // ----------------------------------------

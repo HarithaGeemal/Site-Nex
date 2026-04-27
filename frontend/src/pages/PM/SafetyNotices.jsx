@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { usePMContext } from '../../context/PMContext';
 
 const SafetyNotices = () => {
-    const { safetyObservations, stopHoldNotices, projects, tasks, holdTask } = usePMContext();
+    const { safetyObservations, stopHoldNotices, projects, tasks, holdTask, updateNoticeSeverity } = usePMContext();
     const [filterProject, setFilterProject] = useState('All');
     const [activeTab, setActiveTab] = useState('observations');
 
@@ -197,6 +197,35 @@ const SafetyNotices = () => {
 
                             <div className="text-sm text-gray-700 mb-3 bg-red-50 p-3 rounded-lg border border-red-100">
                                 <strong className="text-red-800">Reason: </strong>{notice.reason}
+                            </div>
+
+                            {/* Severity Control — PM can change this */}
+                            <div className="flex items-center gap-3 mb-3">
+                                <span className="text-xs font-semibold text-gray-600">Severity:</span>
+                                {notice.status === 'Active' ? (
+                                    <select
+                                        value={notice.severity || 'High'}
+                                        onChange={(e) => updateNoticeSeverity(notice.id, e.target.value)}
+                                        className={`text-xs font-bold rounded-lg px-2.5 py-1.5 border cursor-pointer focus:ring-2 focus:outline-none ${
+                                            (notice.severity || 'High') === 'Critical' ? 'bg-purple-100 text-purple-800 border-purple-300 focus:ring-purple-300' :
+                                            (notice.severity || 'High') === 'High' ? 'bg-red-100 text-red-800 border-red-300 focus:ring-red-300' :
+                                            (notice.severity || 'High') === 'Medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-300 focus:ring-yellow-300' :
+                                            'bg-green-100 text-green-800 border-green-300 focus:ring-green-300'
+                                        }`}
+                                    >
+                                        <option value="Critical">Critical</option>
+                                        <option value="High">High</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="Low">Low</option>
+                                    </select>
+                                ) : (
+                                    <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${
+                                        (notice.severity || 'High') === 'Critical' ? 'bg-purple-100 text-purple-800 border-purple-300' :
+                                        (notice.severity || 'High') === 'High' ? 'bg-red-100 text-red-800 border-red-300' :
+                                        (notice.severity || 'High') === 'Medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                                        'bg-green-100 text-green-800 border-green-300'
+                                    }`}>{notice.severity || 'High'}</span>
+                                )}
                             </div>
 
                             {notice.resolution && (

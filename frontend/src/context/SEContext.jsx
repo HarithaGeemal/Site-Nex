@@ -209,8 +209,6 @@ export const SEProvider = (props) => {
             return data;
         } catch (error) {
             console.error("Error completing task", error);
-            const msg = error.response?.data?.message || error.message;
-            alert('Failed to complete task: ' + msg);
             throw error;
         }
     };

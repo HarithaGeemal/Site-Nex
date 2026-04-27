@@ -204,7 +204,44 @@ export const updateTask = async (req, res) => {
             }
         }
 
-        // Only update defined fields
+        // === Completion checks MUST run BEFORE mutating req.task fields ===
+        // Check against the ORIGINAL task status (before line 210 sets it)
+        const isBeingCompleted = (status === "Completed" && req.task.status !== "Completed") ||
+            (percentComplete === 100 && req.task.percentComplete !== 100);
+
+        if (isBeingCompleted) {
+            // Block completion if an active safety notice exists on this task or project-wide
+            const activeNotice = await SafetyNotice.findOne({
+                projectId: req.project._id,
+                status: "Active",
+                $or: [
+                    { taskId: req.task._id },
+                    { taskId: null },
+                    { taskId: { $exists: false } }
+                ]
+            });
+            if (activeNotice) {
+                return res.status(422).json({
+                    success: false,
+                    message: `Cannot complete task. It is blocked by an active Safety Notice (${activeNotice.severity || 'High'} severity): "${activeNotice.reason}". The notice must be lifted first.`
+                });
+            }
+
+            const openIssuesCount = await Issue.countDocuments({
+                taskId: req.task._id,
+                status: { $nin: ["Resolved", "Closed"] },
+                priority: { $in: ["High", "Critical"] }
+            });
+
+            if (openIssuesCount > 0) {
+                return res.status(422).json({
+                    success: false,
+                    message: `Cannot complete task. There are ${openIssuesCount} High/Critical open issues blocking this task. Resolve them first.`
+                });
+            }
+        }
+
+        // Only update defined fields (AFTER completion checks pass)
         if (name !== undefined) req.task.name = name;
         if (description !== undefined) req.task.description = description;
         if (status !== undefined) req.task.status = status;
@@ -219,24 +256,8 @@ export const updateTask = async (req, res) => {
         if (assignedSiteEngineers !== undefined) req.task.assignedSiteEngineers = assignedSiteEngineers;
         if (assignedStoreKeepers !== undefined) req.task.assignedStoreKeepers = assignedStoreKeepers;
 
-        // If trying to complete task, ensure no open issues exist
-        // Only apply this check when status is CHANGING to Completed or percentComplete is CHANGING to 100
-        const isBeingCompleted = (status === "Completed" && req.task.status !== "Completed") ||
-            (percentComplete === 100 && req.task.percentComplete !== 100);
-
+        // If completed, finalize the status
         if (isBeingCompleted) {
-            const openIssuesCount = await Issue.countDocuments({
-                taskId: req.task._id,
-                status: { $nin: ["Resolved", "Closed"] },
-                priority: { $in: ["High", "Critical"] }
-            });
-
-            if (openIssuesCount > 0) {
-                return res.status(422).json({
-                    success: false,
-                    message: `Cannot complete task. There are ${openIssuesCount} High/Critical open issues blocking this task. Resolve them first.`
-                });
-            }
             req.task.status = "Completed";
             req.task.percentComplete = 100;
         }

@@ -22,7 +22,7 @@ export const getAvailableUsers = async (req, res) => {
     try {
         const users = await User.find({ userRole: { $in: ["SITE_ENGINEER", "STORE_KEEPER", "SAFETY_OFFICER", "WORKER"] }, isActive: true })
             .select("name email userRole");
-        
+
         const userStatuses = await Promise.all(users.map(async (u) => {
             const membership = await ProjectMembership.findOne({ userId: u._id, removedAt: null }).populate("projectId", "name");
             return {
@@ -33,7 +33,7 @@ export const getAvailableUsers = async (req, res) => {
                 status: membership && membership.projectId ? `Assigned to ${membership.projectId.name}` : "Available"
             };
         }));
-        
+
         return res.status(200).json({ success: true, users: userStatuses });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -47,21 +47,21 @@ export const getAllProjects = async (req, res) => {
     try {
         const projectIds = await getUserProjectIds(req.user._id);
         const projects = await Project.find({ _id: { $in: projectIds } }).sort({ createdAt: -1 });
-        
+
         // Compute progress for each project based on task completion
         const projectsWithProgress = await Promise.all(projects.map(async (proj) => {
             const tasks = await Task.find({ projectId: proj._id, isCancled: false });
             const totalTasks = tasks.length;
             const completedTasks = tasks.filter(t => t.status === "Completed").length;
             const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-            
+
             // Derive status for UI
             let uiStatus = "Planning";
             if (proj.status === "Active") uiStatus = "Active";
             else if (proj.status === "Completed") uiStatus = "Completed";
             else if (proj.status === "On Hold") uiStatus = "On Hold";
             else if (proj.status === "Planning") uiStatus = "Planning";
-            
+
             return {
                 ...proj.toObject(),
                 progress,
@@ -86,7 +86,7 @@ export const getAllTasks = async (req, res) => {
         const tasks = await Task.find({ projectId: { $in: projectIds }, isCancled: false })
             .populate("dependencyTaskIds", "name status percentComplete")
             .sort({ startDate: 1 });
-            
+
         return res.status(200).json({ success: true, tasks });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -104,7 +104,7 @@ export const getAllIssues = async (req, res) => {
             .populate("assignedTo", "name email")
             .populate("createdBy", "name email")
             .sort({ reportedDate: -1 });
-            
+
         return res.status(200).json({ success: true, issues });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -156,7 +156,7 @@ export const getAllSafetyNotices = async (req, res) => {
         const notices = await SafetyNotice.find({ projectId: { $in: projectIds } })
             .populate("issuedBy", "name")
             .sort({ dateIssued: -1 });
-            
+
         return res.status(200).json({ success: true, safetyNotices: notices });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -187,7 +187,7 @@ export const getAllSafetyObservations = async (req, res) => {
 export const holdTask = async (req, res) => {
     try {
         const { projectId, taskId, reason, observationId } = req.body;
-        
+
         // Ensure user is PM for this project
         const projectIds = await getUserProjectIds(req.user._id);
         if (!projectIds.some(id => id.toString() === projectId.toString())) {
@@ -206,6 +206,7 @@ export const holdTask = async (req, res) => {
             projectId,
             taskId,
             status: "Active",
+            severity: req.body.severity || "High",
             reason: reason || "Task put on hold due to critical safety observation.",
             issuedBy: req.user._id
         });
@@ -216,6 +217,34 @@ export const holdTask = async (req, res) => {
         }
 
         return res.status(200).json({ success: true, message: "Task put on hold. Safety notice issued.", notice, task });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Update severity of a safety notice
+// @route   PATCH /api/pm/safety-notices/:noticeId/severity
+// @access  Project Manager
+export const updateNoticeSeverity = async (req, res) => {
+    try {
+        const { severity } = req.body;
+        if (!["Low", "Medium", "High", "Critical"].includes(severity)) {
+            return res.status(400).json({ success: false, message: "Invalid severity value" });
+        }
+
+        const notice = await SafetyNotice.findById(req.params.noticeId);
+        if (!notice) return res.status(404).json({ success: false, message: "Safety Notice not found" });
+
+        // Ensure PM has access to this project
+        const projectIds = await getUserProjectIds(req.user._id);
+        if (!projectIds.some(id => id.toString() === notice.projectId.toString())) {
+            return res.status(403).json({ success: false, message: "Not authorized for this project" });
+        }
+
+        notice.severity = severity;
+        await notice.save();
+
+        return res.status(200).json({ success: true, message: "Severity updated", notice });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }

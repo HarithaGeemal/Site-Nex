@@ -2,9 +2,7 @@ import Project from "../models/projects.js";
 import Task from "../models/task.js";
 import TaskAssignment from "../models/taskAssignment.js";
 import Issue from "../models/issue.js";
-import MaterialUsageLog from "../models/materialUsageLog.js";
 import ProjectMembership from "../models/projectMembership.js";
-import MaterialService from "./materialService.js";
 import DeletionLog from "../models/deletionLog.js";
 import Worker from "../models/worker.js";
 import Timesheet from "../models/timesheet.js";
@@ -104,7 +102,6 @@ class ProjectService {
         await Task.deleteMany({ projectId });
         await Issue.deleteMany({ projectId });
         await ProjectMembership.deleteMany({ projectId });
-        await MaterialUsageLog.deleteMany({ projectId });
         await Worker.deleteMany({ projectId });
         await Timesheet.deleteMany({ projectId });
         await Project.deleteOne({ _id: projectId });

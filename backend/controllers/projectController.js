@@ -33,7 +33,7 @@ const formatProjectDates = (p) => {
 
 const checkActiveAssignments = async (userIds, excludeProjectId = null) => {
     if (!userIds || userIds.length === 0) return null;
-    
+
     // Find active memberships for these users
     const query = {
         userId: { $in: userIds },
@@ -45,7 +45,7 @@ const checkActiveAssignments = async (userIds, excludeProjectId = null) => {
 
     const activeMembersHips = await ProjectMembership.find(query).populate("projectId", "status name");
 
-    const conflict = activeMembersHips.find(m => 
+    const conflict = activeMembersHips.find(m =>
         m.projectId && m.projectId.status !== "Completed"
     );
 
@@ -68,7 +68,7 @@ export const createProject = async (req, res) => {
             ...(assignedStoreKeepers || []),
             ...(assignedSafetyOfficers || [])
         ];
-        
+
         const conflictError = await checkActiveAssignments(usersToCheck);
         if (conflictError) {
             return res.status(400).json({ success: false, message: conflictError });
@@ -386,7 +386,7 @@ export const getProjectStoreReports = async (req, res) => {
             .populate("requestedBy", "name")
             .populate("issuedBy", "name")
             .sort({ issuedDate: -1 });
-            
+
         return res.status(200).json({ success: true, reports: logs });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });

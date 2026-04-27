@@ -15,6 +15,6 @@ const mainStorageToolSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-mainStorageToolSchema.index({ code: 1 }, { unique: true });
+
 
 export default mongoose.model("main_storage_tools", mainStorageToolSchema);

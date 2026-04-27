@@ -72,9 +72,6 @@ const Issues = () => {
         if (!actionIssue) return;
         try {
             if (actionType === 'update') {
-                if (updateData.priority !== actionIssue.priority) {
-                    await updateIssue(actionIssue.id, { priority: updateData.priority });
-                }
                 if (updateData.status !== actionIssue.status) {
                     await updateIssueStatus(actionIssue.id, updateData.status);
                 }
@@ -105,7 +102,7 @@ const Issues = () => {
     };
 
     const actionLabel = {
-        update: 'Edit Priority/Status',
+        update: 'Edit Status',
         assign: 'Assign',
         resolve: 'Resolve',
         close: 'Close',
@@ -240,7 +237,7 @@ const Issues = () => {
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
                         <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
                             <h3 className="text-lg font-semibold text-gray-800">
-                                {actionType === 'update' && 'Update Priority & Status'}
+                                {actionType === 'update' && 'Update Status'}
                                 {actionType === 'assign' && 'Assign Issue'}
                                 {actionType === 'resolve' && 'Resolve Issue'}
                                 {actionType === 'close' && 'Close Issue'}
@@ -255,12 +252,6 @@ const Issues = () => {
 
                             {actionType === 'update' && (
                                 <div className="space-y-3 pt-2">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                                        <select value={updateData.priority} onChange={(e) => setUpdateData({...updateData, priority: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white focus:ring-1 focus:ring-indigo-500">
-                                            {['Low', 'Medium', 'High', 'Critical'].map(p => <option key={p} value={p}>{p}</option>)}
-                                        </select>
-                                    </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                                         <select value={updateData.status} onChange={(e) => setUpdateData({...updateData, status: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white focus:ring-1 focus:ring-indigo-500">

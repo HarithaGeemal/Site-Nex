@@ -20,7 +20,6 @@ const WorkerSidebar = () => {
             <nav className="flex flex-col gap-2 grow">
                 <Link to="/worker/dashboard" className="p-3 hover:bg-concrete/40 rounded transition-colors text-sm font-medium">Dashboard</Link>
                 <Link to="/worker/tasks" className="p-3 hover:bg-concrete/40 rounded transition-colors text-sm font-medium">My Tasks</Link>
-                <Link to="/worker/materials" className="p-3 hover:bg-concrete/40 rounded transition-colors text-sm font-medium">Material Requests</Link>
                 <Link to="/worker/timesheets" className="p-3 hover:bg-concrete/40 rounded transition-colors text-sm font-medium">Daily Timesheets</Link>
                 <Link to="/worker/safety" className="p-3 hover:bg-concrete/40 rounded transition-colors text-sm font-medium">Safety Resources</Link>
             </nav>

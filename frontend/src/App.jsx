@@ -57,7 +57,6 @@ import SOSafetyNotices from "./pages/SO/SOSafetyNotices";
 import WorkerDashboard from "./pages/Worker/WorkerDashboard";
 import WorkerTasks from "./pages/Worker/WorkerTasks";
 import WorkerSafety from "./pages/Worker/WorkerSafety";
-import WorkerMaterials from "./pages/Worker/WorkerMaterials";
 import WorkerTimesheets from "./pages/Worker/WorkerTimesheets";
 
 const PrivateRoute = ({ children }) => {
@@ -160,7 +159,6 @@ const App = () => {
                     <Route path="dashboard" element={<WorkerDashboard />} />
                     <Route path="tasks" element={<WorkerTasks />} />
                     <Route path="safety" element={<WorkerSafety />} />
-                    <Route path="materials" element={<WorkerMaterials />} />
                     <Route path="timesheets" element={<WorkerTimesheets />} />
                 </Route>
 

@@ -16,6 +16,7 @@ export const WorkerProvider = (props) => {
     
     const [assignedTasks, setAssignedTasks] = useState([]);
     const [assignedSubtasks, setAssignedSubtasks] = useState([]);
+    const [assignedProjects, setAssignedProjects] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchDashboard = useCallback(async () => {
@@ -25,6 +26,7 @@ export const WorkerProvider = (props) => {
             if (data.success) {
                 setAssignedTasks(data.assignedTasks || []);
                 setAssignedSubtasks(data.assignedSubtasks || []);
+                setAssignedProjects(data.assignedProjects || []);
                 
                 setStats({
                     projectsCount: data.projectsCount || 0,
@@ -73,6 +75,7 @@ export const WorkerProvider = (props) => {
         stats,
         assignedTasks,
         assignedSubtasks,
+        assignedProjects,
         isLoading,
         fetchDashboard,
         requestSubtaskCompletion,

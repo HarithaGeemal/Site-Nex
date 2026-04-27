@@ -10,7 +10,8 @@ import {
     getAllProjects,
     holdTask,
     getAvailableUsers,
-    getStoreReports
+    getStoreReports,
+    updateNoticeSeverity
 } from "../controllers/pmDashboardController.js";
 
 const router = express.Router();
@@ -19,6 +20,7 @@ const router = express.Router();
 router.use(protect);
 
 router.post("/hold-task", holdTask);
+router.patch("/safety-notices/:noticeId/severity", updateNoticeSeverity);
 
 router.get("/projects", getAllProjects);
 router.get("/available-users", getAvailableUsers);

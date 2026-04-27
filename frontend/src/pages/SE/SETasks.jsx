@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSEContext } from '../../context/SEContext';
 
 const priorityColors = {
@@ -32,6 +32,16 @@ const SETasks = () => {
         name: '', description: '', assignedWorkers: [],
         startDate: '', endDate: '', status: 'Not Started', priority: 'Medium'
     });
+
+    // Toast notification state
+    const [toast, setToast] = useState(null); // { type: 'success' | 'error', message: string }
+
+    useEffect(() => {
+        if (toast) {
+            const timer = setTimeout(() => setToast(null), 6000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast]);
 
     // Grouping
     const mainTasks = assignedTasks.filter(t => !t.parentTaskId);
@@ -139,15 +149,54 @@ const SETasks = () => {
         if (window.confirm("Are you sure you want to mark this task as completed?")) {
             try {
                 await requestMainTaskCompletion(task.projectId, task.id);
-                alert("Task marked as completed successfully.");
+                setToast({ type: 'success', message: 'Task marked as completed successfully!' });
             } catch (err) {
-                console.error(err);
+                const msg = err?.response?.data?.message || err?.message || "Failed to mark task as completed.";
+                setToast({ type: 'error', message: msg });
             }
         }
     };
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-6 max-w-7xl mx-auto relative">
+            {/* Toast Notification */}
+            {toast && (
+                <div className={`fixed top-6 right-6 z-50 max-w-md animate-slide-in-right`}>
+                    <div className={`rounded-xl shadow-2xl border p-4 flex items-start gap-3 ${
+                        toast.type === 'success' 
+                            ? 'bg-green-50 border-green-200' 
+                            : 'bg-red-50 border-red-200'
+                    }`}>
+                        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg ${
+                            toast.type === 'success' 
+                                ? 'bg-green-100 text-green-600' 
+                                : 'bg-red-100 text-red-600'
+                        }`}>
+                            {toast.type === 'success' ? '✓' : '🛑'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-bold ${
+                                toast.type === 'success' ? 'text-green-800' : 'text-red-800'
+                            }`}>
+                                {toast.type === 'success' ? 'Success' : 'Action Blocked'}
+                            </p>
+                            <p className={`text-sm mt-1 ${
+                                toast.type === 'success' ? 'text-green-700' : 'text-red-700'
+                            }`}>
+                                {toast.message}
+                            </p>
+                        </div>
+                        <button 
+                            onClick={() => setToast(null)} 
+                            className={`flex-shrink-0 text-lg font-bold leading-none hover:opacity-70 ${
+                                toast.type === 'success' ? 'text-green-400' : 'text-red-400'
+                            }`}
+                        >
+                            ×
+                        </button>
+                    </div>
+                </div>
+            )}
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Assigned Tasks</h1>

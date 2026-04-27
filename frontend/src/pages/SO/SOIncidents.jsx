@@ -28,6 +28,7 @@ const SOIncidents = () => {
     const { activeProjectId, safetyIncidents, createIncident, updateIncident, deleteIncident } = useSOContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentIncident, setCurrentIncident] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
 
     const emptyForm = {
         incidentDate: new Date().toISOString().split('T')[0],
@@ -77,9 +78,11 @@ const SOIncidents = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (submitting) return;
         if (!formData.incidentDate || !formData.incidentType || !formData.location.trim() || !formData.description.trim() || !formData.severity) {
             return alert('Date, Type, Location, Description, and Severity are required.');
         }
+        setSubmitting(true);
         try {
             const payload = {
                 ...formData,
@@ -91,6 +94,8 @@ const SOIncidents = () => {
         } catch (error) {
             const msg = error?.response?.data?.message || 'Failed to save incident.';
             alert(msg);
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -243,7 +248,7 @@ const SOIncidents = () => {
                         </form>
                         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
                             <button type="button" onClick={closeModal} className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium">Cancel</button>
-                            <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium">Save Incident</button>
+                            <button type="button" onClick={handleSubmit} disabled={submitting} className={`px-4 py-2 text-white rounded font-medium ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}>{submitting ? 'Saving...' : 'Save Incident'}</button>
                         </div>
                     </div>
                 </div>

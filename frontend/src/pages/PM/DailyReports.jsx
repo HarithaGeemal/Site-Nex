@@ -70,10 +70,12 @@ const DailyReports = () => {
             </div>
 
             {/* Reports Grid — read-only cards with expandable details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filtered.map(report => (
-                    <div key={report.id} className="bg-white rounded-xl shadow-sm border border-concrete-light p-5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
-                         onClick={() => setExpandedId(expandedId === report.id ? null : report.id)}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+                {filtered.map((report, index) => {
+                    const reportKey = `report-${index}`;
+                    return (
+                    <div key={reportKey} className="bg-white rounded-xl shadow-sm border border-concrete-light p-5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
+                         onClick={() => setExpandedId(expandedId === reportKey ? null : reportKey)}>
                         {/* Date Header */}
                         <div className="flex items-center gap-3 mb-3">
                             <div className="bg-steel-blue/10 text-steel-blue rounded-lg p-2.5 text-center min-w-[52px]">
@@ -101,11 +103,11 @@ const DailyReports = () => {
                         {/* Work Completed */}
                         <div className="mb-3">
                             <span className="text-xs text-concrete uppercase font-medium block mb-1">Work Completed</span>
-                            <p className={`text-sm text-gray-700 ${expandedId === report.id ? '' : 'line-clamp-3'}`}>{report.workCompleted}</p>
+                            <p className={`text-sm text-gray-700 ${expandedId === reportKey ? '' : 'line-clamp-3'}`}>{report.workCompleted}</p>
                         </div>
 
                         {/* Expanded Details */}
-                        {expandedId === report.id && (
+                        {expandedId === reportKey && (
                             <div className="space-y-3 border-t border-concrete-light pt-3 mt-1">
                                 {report.delaysOrRisks && (
                                     <div>
@@ -141,10 +143,11 @@ const DailyReports = () => {
                         {/* Footer */}
                         <div className="flex justify-between pt-3 mt-auto border-t border-concrete-light text-xs">
                             <span className="text-concrete">👷 {report.workerCount || 0} workers</span>
-                            <span className="text-steel-blue font-medium">{expandedId === report.id ? 'Click to collapse ▲' : 'Click to expand ▼'}</span>
+                            <span className="text-steel-blue font-medium">{expandedId === reportKey ? 'Click to collapse ▲' : 'Click to expand ▼'}</span>
                         </div>
                     </div>
-                ))}
+                    );
+                })}
                 {filtered.length === 0 && (
                     <div className="col-span-3 text-center py-16 text-concrete">
                         <p className="text-lg font-medium">No reports found for this project.</p>

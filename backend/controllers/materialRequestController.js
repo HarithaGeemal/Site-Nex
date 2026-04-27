@@ -1,6 +1,4 @@
 import MaterialRequest from "../models/materialRequest.js";
-import MaterialService from "../services/materialService.js";
-
 // @desc    Get all material requests for a project
 // @route   GET /api/projects/:projectId/material-requests
 // @access  Private
@@ -74,53 +72,6 @@ export const createMaterialRequest = async (req, res) => {
         const requests = await MaterialRequest.insertMany(requestDocs);
 
         return res.status(201).json({ success: true, message: "Requests submitted successfully", requests });
-    } catch (error) {
-        return res.status(400).json({ success: false, message: error.message });
-    }
-};
-
-// @desc    Respond to a Material Request (Approve / Deny)
-// @route   PATCH /api/projects/:projectId/material-requests/:requestId/respond
-// @access  Store Keeper
-export const respondToMaterialRequest = async (req, res) => {
-    try {
-        const { status, notes } = req.body;
-        
-        const request = await MaterialRequest.findOne({ _id: req.params.requestId, projectId: req.project._id });
-        if (!request) return res.status(404).json({ success: false, message: "Material Request not found" });
-        
-        if (request.status !== "Pending") {
-            return res.status(400).json({ success: false, message: `Request is already ${request.status}` });
-        }
-
-        request.status = status;
-        request.approvedBy = req.user._id;
-        if (notes) request.notes = (request.notes ? request.notes + "\n" : "") + "Store Keeper Note: " + notes;
-
-        // If Approved, automatically generate the UsageLog to securely deduct stock!
-        if (status === "Approved") {
-            try {
-                // Let the MaterialService handle the transactional deduction safely
-                await MaterialService.logUsage({
-                    projectId: request.projectId,
-                    taskId: request.taskId,
-                    materialItemId: request.materialItemId,
-                    quantityUsed: request.requestedQuantity,
-                    usageDate: new Date()
-                }, req.user._id);
-            } catch (err) {
-                // If it fails (e.g. insufficient stock), refuse to approve!
-                return res.status(422).json({ success: false, message: "Approval Failed: " + err.message });
-            }
-        }
-
-        await request.save();
-
-        return res.status(200).json({ 
-            success: true, 
-            message: `Material request has been securely ${status}`,
-            request 
-        });
     } catch (error) {
         return res.status(400).json({ success: false, message: error.message });
     }

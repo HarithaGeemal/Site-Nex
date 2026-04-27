@@ -529,6 +529,22 @@ export const PMProvider = (props) => {
         }
     };
 
+    // Update Notice Severity
+    const updateNoticeSeverity = async (noticeId, severity) => {
+        try {
+            const { data } = await axiosClient.patch(`/pm/safety-notices/${noticeId}/severity`, { severity });
+            if (data.success) {
+                await fetchStopHoldNotices();
+                return { success: true };
+            }
+        } catch (e) {
+            const msg = e.response?.data?.message || e.message;
+            console.error("Error updating notice severity:", msg);
+            alert('Failed to update severity: ' + msg);
+            return { success: false, message: msg };
+        }
+    };
+
     // Safety Observations — local state only for now
     const addSafetyObservation = (obs) => setSafetyObservations(prev => [...prev, { ...obs, id: `SAF-${Date.now()}` }]);
     const updateSafetyObservation = (id, updated) => setSafetyObservations(prev => upsertById(prev, { ...updated, id }));
@@ -601,6 +617,7 @@ export const PMProvider = (props) => {
         addSafetyObservation, updateSafetyObservation, deleteSafetyObservation,
         addStopHoldNotice, updateStopHoldNotice, deleteStopHoldNotice,
         holdTask,
+        updateNoticeSeverity,
         getProjectTasks, getProjectIssues, calculateProjectProgress, countOpenIssues, getWorkerTaskLoad, getOverdueTasks
     };
 

@@ -7,6 +7,7 @@ const SOSafetyNotices = () => {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editingNoticeId, setEditingNoticeId] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
 
     const emptyForm = { taskId: '', location: '', reason: '', status: 'Active' };
     const [formData, setFormData] = useState(emptyForm);
@@ -32,6 +33,8 @@ const SOSafetyNotices = () => {
 
     const handleCreate = async (e) => {
         e.preventDefault();
+        if (submitting) return;
+        setSubmitting(true);
         try {
             const payload = { ...formData };
             if (!payload.taskId) delete payload.taskId;
@@ -41,11 +44,15 @@ const SOSafetyNotices = () => {
             closeCreate();
         } catch (error) {
             alert('Failed to issue Safety Notice: ' + (error?.response?.data?.message || error.message));
+        } finally {
+            setSubmitting(false);
         }
     };
 
     const handleEdit = async (e) => {
         e.preventDefault();
+        if (submitting) return;
+        setSubmitting(true);
         try {
             const payload = { ...formData };
             if (!payload.taskId) delete payload.taskId;
@@ -54,6 +61,8 @@ const SOSafetyNotices = () => {
             closeEdit();
         } catch (error) {
             alert('Failed to update Safety Notice: ' + (error?.response?.data?.message || error.message));
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -209,7 +218,7 @@ const SOSafetyNotices = () => {
                         </form>
                         <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
                             <button type="button" onClick={closeCreate} className="px-4 py-2 text-gray-600 hover:bg-gray-200 font-medium rounded-lg transition">Cancel</button>
-                            <button type="button" onClick={handleCreate} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow transition">Issue Notice</button>
+                            <button type="button" onClick={handleCreate} disabled={submitting} className={`px-4 py-2 text-white font-medium rounded-lg shadow transition ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}>{submitting ? 'Issuing...' : 'Issue Notice'}</button>
                         </div>
                     </div>
                 </div>
@@ -253,7 +262,7 @@ const SOSafetyNotices = () => {
                         </form>
                         <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
                             <button type="button" onClick={closeEdit} className="px-4 py-2 text-gray-600 hover:bg-gray-200 font-medium rounded-lg transition">Cancel</button>
-                            <button type="button" onClick={handleEdit} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow transition">Save Changes</button>
+                            <button type="button" onClick={handleEdit} disabled={submitting} className={`px-4 py-2 text-white font-medium rounded-lg shadow transition ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>{submitting ? 'Saving...' : 'Save Changes'}</button>
                         </div>
                     </div>
                 </div>
